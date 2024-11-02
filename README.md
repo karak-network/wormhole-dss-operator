@@ -49,7 +49,7 @@ This guide will help you set up and run the Wormhole DSS Operator.
 Run the following command to download the binaries:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/karak-network/Reth-Exex-DSS/releases/download/wormhole-operator-v0.0.1/wormhole-operator-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/karak-network/wormhole-dss-operator/releases/download/wormhole-operator-v0.0.1/wormhole-operator-installer.sh | sh
 ````
 
 The script will place these binaries in the `$HOME/.karak/bin` directory and add this directory to your `$PATH` variable.
