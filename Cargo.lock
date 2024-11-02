@@ -6241,7 +6241,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-operator"
-version = "0.0.2"
+version = "0.0.1"
 dependencies = [
  "alloy",
  "alloy-signer-aws",
