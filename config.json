@@ -1,0 +1,19 @@
+{
+    "chains": [{
+        "name": "Ethereum Sepolia",
+        "wormhole_chain_id": 10002,
+        "wormhole_dss_address": "0xb725593Cba23f8d5D5EA9122afaD360dE34716c2",
+        "core_address": "0xb3E2dA61df98E44457190383e1FF13e1ea13280b",
+        "ws_rpc_url": "<WS_RPC_URL>",
+        "listen": true
+    },
+    {
+        "name": "Arbitrum Sepolia",
+        "wormhole_chain_id": 10003,
+        "wormhole_dss_address": "0x22E5941D466B9EAe55744de12A80d1c4F48eb5BD",
+        "core_address": "0x792a05d0687195a96FA49446275569b539271340",
+        "ws_rpc_url": "<WS_RPC_URL>",
+        "listen": true
+    }
+]
+}

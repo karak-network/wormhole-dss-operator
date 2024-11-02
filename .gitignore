@@ -1,0 +1,6 @@
+debug/
+target/
+*.db
+.env
+*.keypair
+node_modules/

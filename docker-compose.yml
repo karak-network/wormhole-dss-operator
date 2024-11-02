@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  wormhole:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/usr/src/app
+      - ./data:/usr/src/app/data
+      - ./bls_keypair.keypair:/usr/src/app/bls_keypair.keypair
+    working_dir: /usr/src/app
+    command: cargo run
+    ports:
+      - "8080:8080"
