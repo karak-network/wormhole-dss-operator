@@ -3,6 +3,7 @@ name = "wormhole-operator"
 version = "0.0.1"
 edition = "2021"
 rust-version = "1.79.0"
+license = "BUSL-1.1"
 repository = "https://github.com/karak-network/wormhole-dss-operator"
 
 [dependencies]
