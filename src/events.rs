@@ -1,9 +1,10 @@
 use std::{str::FromStr, sync::Arc};
 
 use alloy::{
-    dyn_abi::DynSolValue,
     eips::BlockNumberOrTag,
-    primitives::{Address, Bytes, Signature, U256},
+    primitives::{Address, Bytes, Signature},
+    sol,
+    sol_types::SolValue,
 };
 use base64::prelude::*;
 use eyre::Context;
@@ -156,6 +157,18 @@ pub async fn run_event_listener(
     Ok(())
 }
 
+sol! {
+    struct AbiEncodingParams{
+        address sender;
+        uint16 sourceChain;
+        uint16 recipientChain;
+        bytes32 sourceNttManager;
+        bytes32 recipientNttManager;
+        bytes32 refundAddress;
+        bytes message;
+    }
+}
+
 pub async fn handle_event_log_message_published(
     dss_context: DssContext,
     event: &WormholeDSSMessageSent,
@@ -165,18 +178,17 @@ pub async fn handle_event_log_message_published(
     topic: &String,
     config: Config,
 ) {
-    let abi_encoded_message = Bytes::from(
-        DynSolValue::Tuple(vec![
-            DynSolValue::Address(event.caller),
-            DynSolValue::Uint(U256::from(event.sourceChain), 16),
-            DynSolValue::Uint(U256::from(event.recipientChain), 16),
-            DynSolValue::FixedBytes(event.sourceNttManager, 32),
-            DynSolValue::FixedBytes(event.recipientNttManager, 32),
-            DynSolValue::FixedBytes(event.refundAddress, 32),
-            DynSolValue::Bytes(event.message.clone().into()),
-        ])
-        .abi_encode(),
-    );
+    let abi_encoding_params = AbiEncodingParams {
+        sender: event.caller,
+        sourceChain: event.sourceChain,
+        recipientChain: event.recipientChain,
+        sourceNttManager: event.sourceNttManager,
+        recipientNttManager: event.recipientNttManager,
+        refundAddress: event.refundAddress,
+        message: event.message.clone(),
+    };
+
+    let abi_encoded_message = Bytes::from(abi_encoding_params.abi_encode());
     tracing::info!("ABI encoded message: {}", abi_encoded_message);
     let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone());
 
