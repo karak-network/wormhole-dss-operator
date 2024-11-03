@@ -47,12 +47,13 @@ pub async fn query_payloads(
 ) -> Json<PayloadResponse> {
     let db = state.db.lock().await;
 
-    let dst_chain_id = {
+    let (dst_chain_id, unsigned_operator_payload) = {
         let mut stmt = db
-            .prepare("SELECT dst_chain_id FROM payloads WHERE message_event = ? LIMIT 1")
+            .prepare("SELECT dst_chain_id, unsigned_payload FROM payloads WHERE message_event = ? LIMIT 1")
             .expect("Failed to prepare statement");
-        stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0)
-        // Default to 0 if not found
+        let dst_chain_id = stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0);
+        let unsigned_operator_payload = stmt.query_row(params![payload.unsigned_payload], |row| row.get(1)).unwrap();
+        (dst_chain_id, unsigned_operator_payload)
     };
 
     let signing_operator_data = {
@@ -113,7 +114,7 @@ pub async fn query_payloads(
         aggregated_g1_key: <G1PointAffine>::from(aggregated_g1_key),
         aggregated_g2_key: <G2PointAffine>::from(aggregated_g2_key),
         aggregated_sign: <G1PointAffine>::from(aggregated_sign),
-        unsigned_payload: payload.unsigned_payload,
+        unsigned_payload: unsigned_operator_payload,
         operator_data: signing_operator_data,
     };
 
