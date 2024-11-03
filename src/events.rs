@@ -3,10 +3,9 @@ use std::{str::FromStr, sync::Arc};
 use alloy::{
     eips::BlockNumberOrTag,
     primitives::{Address, Bytes, Signature},
-    sol,
-    sol_types::SolValue,
 };
 use base64::prelude::*;
+use ethers_core::{abi, types::H160};
 use eyre::Context;
 use futures::{stream::FuturesUnordered, StreamExt};
 use karak_rs::{
@@ -157,18 +156,6 @@ pub async fn run_event_listener(
     Ok(())
 }
 
-sol! {
-    struct AbiEncodingParams{
-        address sender;
-        uint16 sourceChain;
-        uint16 recipientChain;
-        bytes32 sourceNttManager;
-        bytes32 recipientNttManager;
-        bytes32 refundAddress;
-        bytes message;
-    }
-}
-
 pub async fn handle_event_log_message_published(
     dss_context: DssContext,
     event: &WormholeDSSMessageSent,
@@ -178,17 +165,28 @@ pub async fn handle_event_log_message_published(
     topic: &String,
     config: Config,
 ) {
-    let abi_encoding_params = AbiEncodingParams {
-        sender: event.caller,
-        sourceChain: event.sourceChain,
-        recipientChain: event.recipientChain,
-        sourceNttManager: event.sourceNttManager,
-        recipientNttManager: event.recipientNttManager,
-        refundAddress: event.refundAddress,
-        message: event.message.clone(),
-    };
+    // let abi_encoded_message = Bytes::copy_from_slice(
+    //     &(
+    //         event.caller,
+    //         event.sourceChain,
+    //         event.recipientChain,
+    //         event.sourceNttManager,
+    //         event.recipientNttManager,
+    //         event.refundAddress,
+    //         event.message.clone(),
+    //     )
+    //         .abi_encode(),
+    // );
+    let abi_encoded_message: Bytes = abi::encode(&[
+        abi::Token::Address(H160::from_str(event.caller.to_string().as_str()).unwrap()),
+        abi::Token::Uint(ethers_core::types::U256::from(event.sourceChain)),
+        abi::Token::Uint(ethers_core::types::U256::from(event.recipientChain)),
+        abi::Token::FixedBytes(event.sourceNttManager.to_vec()),
+        abi::Token::FixedBytes(event.recipientNttManager.to_vec()),
+        abi::Token::FixedBytes(event.refundAddress.to_vec()),
+        abi::Token::Bytes(event.message.clone().to_vec()),
+    ]).into();
 
-    let abi_encoded_message = Bytes::from(abi_encoding_params.abi_encode());
     tracing::info!("ABI encoded message: {}", abi_encoded_message);
     let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone());
 

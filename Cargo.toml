@@ -50,6 +50,7 @@ axum-macros = "0.4.2"
 tracing = "0.1.40"
 envy = "0.4.2"
 karak-rs = "0.2.1"
+ethers-core = "2.0.14"
 
 [[bin]]
 name = "wormhole-operator"

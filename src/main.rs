@@ -91,7 +91,7 @@ async fn main() -> eyre::Result<()> {
             let event_listener_handle = tokio::spawn(async move {
                 run_event_listener(config_clone, &connection, &message_sender, TOPIC)
                     .await
-                    .unwrap_or_else(|_| panic!("Run event listeners failed"));
+                    .unwrap_or_else(|e| panic!("Run event listeners failed {}", e));
             });
 
             let joined_handles = tokio::join!(server_handle, p2p_handle, event_listener_handle);
