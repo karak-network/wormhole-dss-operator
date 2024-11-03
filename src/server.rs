@@ -51,8 +51,10 @@ pub async fn query_payloads(
         let mut stmt = db
             .prepare("SELECT dst_chain_id, unsigned_payload FROM payloads WHERE message_event = ? LIMIT 1")
             .expect("Failed to prepare statement");
-        let dst_chain_id = stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0);
-        let unsigned_operator_payload = stmt.query_row(params![payload.unsigned_payload], |row| row.get(1)).unwrap();
+        let dst_chain_id =
+            stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0);
+        let unsigned_operator_payload =
+            stmt.query_row(params![payload.unsigned_payload], |row| row.get(1)).unwrap();
         (dst_chain_id, unsigned_operator_payload)
     };
 
