@@ -185,7 +185,8 @@ pub async fn handle_event_log_message_published(
         abi::Token::FixedBytes(event.recipientNttManager.to_vec()),
         abi::Token::FixedBytes(event.refundAddress.to_vec()),
         abi::Token::Bytes(event.message.clone().to_vec()),
-    ]).into();
+    ])
+    .into();
 
     tracing::info!("ABI encoded message: {}", abi_encoded_message);
     let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone());
