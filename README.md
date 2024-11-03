@@ -137,14 +137,36 @@ SERVER_PORT=
 
 ### Running the Binary
 
-1. run 
+1. Keep the `.env` file in the directory you run the binary in. Or export the environment variables using:
 ```bash 
 source .env
  ```
 2. Run the binary:
 
 ```bash 
-wormhole-operator run
+wormhole-operator run \
+    -bn254_kms local/aws \
+    --bn254_key_path <BN254_KEY_PATH(if local)> \
+    --bn254_aws_access_key_id <BN254_AWS_ACCESS_KEY_ID(if aws)> \
+    --bn254_aws_secret_access_key <BN254_AWS_SECRET_ACCESS_KEY(if aws)> \
+    --bn254_aws_default_region <BN254_AWS_DEFAULT_REGION(if aws)> \
+    --bn254_aws_password <BN254_AWS_PASSWORD(if aws)> \
+    --bn254_aws_key_name <BN254_AWS_KEY_NAME(if aws)> \
+    --eth_kms env/local/aws \
+    --eth_private_key <ETH_PRIVATE_KEY(if env)> \
+    --eth_keystore_path <ETH_KEYSTORE_PATH(if local)> \
+    --eth_aws_key_id <ETH_AWS_KEY_ID(if aws)> \
+    --eth_aws_access_key_id <ETH_AWS_ACCESS_KEY_ID(if aws)> \
+    --eth_aws_secret_access_key <ETH_AWS_SECRET_ACCESS_KEY(if aws)> \
+    --eth_aws_region <ETH_AWS_REGION(if aws)> \
+    --eth_aws_key_name <ETH_AWS_KEY_NAME(if aws)> \
+    --p2p_listen_address \
+    --bootstrap_nodes \
+    --idle_timeout_duration \
+    --event_subscription_mode \
+    --db_path \
+    --server_port
+    },
 ```
 
 ---

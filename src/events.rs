@@ -165,18 +165,6 @@ pub async fn handle_event_log_message_published(
     topic: &String,
     config: Config,
 ) {
-    // let abi_encoded_message = Bytes::copy_from_slice(
-    //     &(
-    //         event.caller,
-    //         event.sourceChain,
-    //         event.recipientChain,
-    //         event.sourceNttManager,
-    //         event.recipientNttManager,
-    //         event.refundAddress,
-    //         event.message.clone(),
-    //     )
-    //         .abi_encode(),
-    // );
     let abi_encoded_message: Bytes = abi::encode(&[
         abi::Token::Address(H160::from_str(event.caller.to_string().as_str()).unwrap()),
         abi::Token::Uint(ethers_core::types::U256::from(event.sourceChain)),
