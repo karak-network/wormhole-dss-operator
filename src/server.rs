@@ -27,7 +27,8 @@ pub struct OperatorData {
     pub bls_public_key_g1: G1PointAffine,
     pub bls_public_key_g2: G2PointAffine,
     pub operator_address: String,
-    pub signed_payload: G1PointAffine,
+    pub unsigned_payload: String,
+    pub signature: G1PointAffine,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -36,6 +37,7 @@ pub struct PayloadResponse {
     pub aggregated_g1_key: G1PointAffine,
     pub aggregated_g2_key: G2PointAffine,
     pub aggregated_sign: G1PointAffine,
+    pub unsigned_payload: String,
     pub operator_data: Vec<OperatorData>,
 }
 
@@ -47,7 +49,7 @@ pub async fn query_payloads(
 
     let dst_chain_id = {
         let mut stmt = db
-            .prepare("SELECT dst_chain_id FROM payloads WHERE unsigned_payload = ? LIMIT 1")
+            .prepare("SELECT dst_chain_id FROM payloads WHERE message_event = ? LIMIT 1")
             .expect("Failed to prepare statement");
         stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0)
         // Default to 0 if not found
@@ -55,7 +57,7 @@ pub async fn query_payloads(
 
     let signing_operator_data = {
         let mut stmt = db
-            .prepare("SELECT bls_public_key_g1, bls_public_key_g2, operator_address, signed_payload, dst_chain_id FROM payloads WHERE unsigned_payload = ?")
+            .prepare("SELECT bls_public_key_g1, bls_public_key_g2, operator_address, signed_payload, unsigned_payload FROM payloads WHERE message_event = ?")
             .expect("Failed to prepare statement");
 
         stmt.query_map(params![payload.unsigned_payload], |row| {
@@ -63,7 +65,8 @@ pub async fn query_payloads(
                 bls_public_key_g1: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(0)?)),
                 bls_public_key_g2: <G2PointAffine>::from(g2_point_from_bytes_string(row.get(1)?)),
                 operator_address: row.get(2)?,
-                signed_payload: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(3)?)),
+                signature: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(3)?)),
+                unsigned_payload: row.get(4)?,
             })
         })
         .expect("Failed to execute query")
@@ -102,7 +105,7 @@ pub async fn query_payloads(
         .sum::<G2Point>();
     let aggregated_sign = signing_operator_data
         .iter()
-        .map(|payload| G1Point::from(payload.signed_payload))
+        .map(|payload| G1Point::from(payload.signature))
         .sum::<G1Point>();
 
     let payload_response = PayloadResponse {
@@ -110,6 +113,7 @@ pub async fn query_payloads(
         aggregated_g1_key: <G1PointAffine>::from(aggregated_g1_key),
         aggregated_g2_key: <G2PointAffine>::from(aggregated_g2_key),
         aggregated_sign: <G1PointAffine>::from(aggregated_sign),
+        unsigned_payload: payload.unsigned_payload,
         operator_data: signing_operator_data,
     };
 

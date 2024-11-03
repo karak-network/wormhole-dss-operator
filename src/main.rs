@@ -68,7 +68,7 @@ async fn main() -> eyre::Result<()> {
                 .unwrap();
             });
 
-            // // axum server
+            // axum server
             let state = Arc::new(AppState {
                 db: connection.clone(),
                 config: Arc::new(Mutex::new(config_clone.clone())),
