@@ -32,6 +32,7 @@ pub struct DssContext {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct WormholeMessage {
+    pub message_event: String,
     pub unsigned_payload: String,
     pub signed_payload: String,
     pub bls_public_key_g2: String,
@@ -46,6 +47,7 @@ pub struct WormholeMessage {
 pub struct OperatorData {
     pub src_chain_id: u16,
     pub dst_chain_id: u16,
+    pub message_event: String,
     pub signed_payload: Bytes,
     pub unsigned_payload: Bytes,
     pub bls_public_key_g1: Bytes,
@@ -196,6 +198,7 @@ pub async fn handle_event_log_message_published(
         OperatorData {
             src_chain_id,
             dst_chain_id: event.recipientChain,
+            message_event: event.message.to_string(),
             signed_payload: signed_payload.clone(),
             unsigned_payload: abi_encoded_message.clone(),
             bls_public_key_g1: Bytes::from(dss_context.keypair.public_key().g1.to_bytes().unwrap()),
@@ -213,6 +216,7 @@ pub async fn handle_event_log_message_published(
     let wormhole_message = WormholeMessage {
         src_chain_id,
         dst_chain_id: event.recipientChain,
+        message_event: event.message.to_string(),
         unsigned_payload: BASE64_STANDARD.encode(abi_encoded_message.clone()),
         signed_payload: BASE64_STANDARD.encode(signed_payload.clone()),
         bls_public_key_g2: BASE64_STANDARD
@@ -269,6 +273,7 @@ pub async fn handle_message_received(
         OperatorData {
             src_chain_id: wormhole_message.src_chain_id,
             dst_chain_id: wormhole_message.dst_chain_id,
+            message_event: wormhole_message.message_event.clone(),
             signed_payload: signed_payload.clone(),
             unsigned_payload: unsigned_payload.clone(),
             bls_public_key_g1: bls_public_key_g1.clone(),
@@ -290,6 +295,7 @@ pub async fn handle_message_received(
         OperatorData {
             src_chain_id: wormhole_message.src_chain_id,
             dst_chain_id: wormhole_message.dst_chain_id,
+            message_event: wormhole_message.message_event.clone(),
             signed_payload: signed_payload.clone(),
             unsigned_payload: unsigned_payload.clone(),
             bls_public_key_g1: bls_public_key_g1.clone(),
