@@ -97,8 +97,9 @@ Follow the steps [here](https://docs.karak.network/operators/registration) for K
 Fill out the `.env` with the following environment variables:
 
 ```
-LISTEN_ADDR=/ip4/0.0.0.0/tcp/0
-BOOTSTRAP_NODES='[{peer_id: "12D3KooWLygH1RhePYmXRjM5XhXuPxzRpeXjMedmmB98TFgwDsvG", address: "/ip4/127.0.0.1/tcp/65056"}]'
+LISTEN_ADDR=/ip4/0.0.0.0/tcp/8085
+# Pre filled address of bootnode
+BOOTSTRAP_NODES='[{peer_id: "12D3KooWNsY2874ai6jVdYAWy3yPCx1MhnRddNwNMn54UEVoA9ik", address: "/ip4/65.1.181.93/tcp/8085"}]'
 IDLE_TIMEOUT_DURATION=60
 # MODES = LATEST, SAFE
 EVENT_SUBSCRIPTION_MODE=SAFE
