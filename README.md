@@ -166,7 +166,6 @@ wormhole-operator run \
     --event_subscription_mode \
     --db_path \
     --server_port
-    },
 ```
 
 ---
