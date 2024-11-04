@@ -16,13 +16,14 @@ use libp2p::gossipsub::Message;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
-use tracing::{self, info};
+use tracing;
 
 use crate::{
     contracts::WormholeDSS::WormholeDSSMessageSent,
     keypair::{self, g1_point_from_bytes_string, get_operator_signed_message, G1PointAffine},
     table::{create_tables, insert_payload},
     utils::{from_wormhole_format, Config},
+    EventSubscriptionMode,
 };
 
 #[derive(Clone)]
@@ -89,62 +90,66 @@ pub async fn run_event_listener(
     let dss_context = DssContext { keypair };
     create_tables(&mut connection.clone()).await?;
 
-    let mode = match config.env_config.event_subscription_mode.clone().as_str() {
-        "LATEST" => BlockNumberOrTag::Latest,
-        "SAFE" => BlockNumberOrTag::Safe,
-        _ => BlockNumberOrTag::Safe,
+    let mode = match config.env_config.event_subscription_mode {
+        EventSubscriptionMode::Latest => BlockNumberOrTag::Latest,
+        EventSubscriptionMode::Safe => BlockNumberOrTag::Safe,
+        EventSubscriptionMode::Finalized => BlockNumberOrTag::Finalized,
     };
 
     let mut futures = FuturesUnordered::new();
 
-    // Clone necessary values before the loop
     let connection = connection.clone();
     let message_sender = message_sender.clone();
     let topic = topic.to_string();
     let dss_context = Arc::new(dss_context);
 
     for (chain_id, chain_config) in config.chain_config.chains.clone() {
-        let stream = chain_config
-            .wormhole_dss_manager
-            .wormhole_dss_instance
-            .WormholeDSSMessageSent_filter()
-            .from_block(mode)
-            .subscribe()
-            .await
-            .wrap_err(format!("Failed to create message filter for chain {}", chain_id))?;
+        if chain_config.listen {
+            let stream = chain_config
+                .wormhole_dss_manager
+                .wormhole_dss_instance
+                .WormholeDSSMessageSent_filter()
+                .from_block(mode)
+                .subscribe()
+                .await
+                .wrap_err(format!("Failed to create message filter for chain {}", chain_id))?;
 
-        // Clone the values needed for the async closure
-        let connection = connection.clone();
-        let message_sender = message_sender.clone();
-        let topic = topic.clone();
-        let config = config.clone();
-        let dss_context = dss_context.clone();
+            let connection = connection.clone();
+            let message_sender = message_sender.clone();
+            let topic = topic.clone();
+            let config = config.clone();
+            let dss_context = dss_context.clone();
 
-        let chain_future = async move {
-            let mut event_stream = stream.into_stream();
-            while let Some(result) = event_stream.next().await {
-                match result {
-                    Ok((log, _)) => {
-                        handle_event_log_message_published(
-                            (*dss_context).clone(),
-                            &log,
-                            chain_id,
-                            &connection,
-                            &message_sender,
-                            &topic,
-                            config.clone(),
-                        )
-                        .await;
-                    }
-                    Err(e) => {
-                        tracing::error!("Error receiving log message on chain {}: {}", chain_id, e);
-                        continue;
+            let chain_future = async move {
+                let mut event_stream = stream.into_stream();
+                while let Some(result) = event_stream.next().await {
+                    match result {
+                        Ok((log, _)) => {
+                            handle_event_log_message_published(
+                                (*dss_context).clone(),
+                                &log,
+                                chain_id,
+                                &connection,
+                                &message_sender,
+                                &topic,
+                                config.clone(),
+                            )
+                            .await;
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                "Error receiving log message on chain {}: {}",
+                                chain_id,
+                                e
+                            );
+                            continue;
+                        }
                     }
                 }
-            }
-            Ok::<_, eyre::Error>(())
-        };
-        futures.push(chain_future);
+                Ok::<_, eyre::Error>(())
+            };
+            futures.push(chain_future);
+        }
     }
 
     while let Some(result) = futures.next().await {
@@ -165,6 +170,8 @@ pub async fn handle_event_log_message_published(
     topic: &String,
     config: Config,
 ) {
+    tracing::info!("Received event: {} on chain {}", event.message, src_chain_id);
+
     let abi_encoded_message: Bytes = abi::encode(&[
         abi::Token::Address(H160::from_str(event.caller.to_string().as_str()).unwrap()),
         abi::Token::Uint(ethers_core::types::U256::from(event.sourceChain)),
@@ -176,8 +183,10 @@ pub async fn handle_event_log_message_published(
     ])
     .into();
 
-    tracing::info!("ABI encoded message: {}", abi_encoded_message);
+    tracing::info!("ABI encoded message payload: {}", abi_encoded_message);
     let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone());
+
+    tracing::info!("Signed payload: {}", signed_payload);
 
     let (operator_address, operator_signature) = get_operator_signed_message(
         abi_encoded_message.to_string(),
@@ -211,7 +220,7 @@ pub async fn handle_event_log_message_published(
     .unwrap_or_else(|e| {
         tracing::error!("Failed to insert payload: {}", e);
     });
-    // broadcast to all other peers
+
     let wormhole_message = WormholeMessage {
         src_chain_id,
         dst_chain_id: event.recipientChain,
@@ -239,8 +248,6 @@ pub async fn handle_event_log_message_published(
         .unwrap_or_else(|e| {
             tracing::error!("Failed to send message: {}", e);
         });
-
-    info!("Signed payload: {}", signed_payload);
 }
 
 pub async fn handle_message_received(
@@ -251,6 +258,8 @@ pub async fn handle_message_received(
     let message_string = String::from_utf8_lossy(&message.data);
     let wormhole_message =
         WormholeMessage::from_base64(&message_string).expect("Failed to decode message");
+
+    tracing::info!("Received message: {:?}", wormhole_message);
 
     let unsigned_payload =
         Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload.clone()).unwrap());

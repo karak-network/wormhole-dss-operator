@@ -29,12 +29,12 @@ async fn main() -> eyre::Result<()> {
         WormholeOperatorCommand::Run { .. } => {
             let config = load_config(cli).await?;
             let connection =
-                Arc::new(Mutex::new(Connection::open(std::env::var("DB_PATH").unwrap())?));
+                Arc::new(Mutex::new(Connection::open(config.clone().env_config.db_path)?));
             let connection_clone = connection.clone();
 
             //tracing subscriber
             let subscriber = FmtSubscriber::builder()
-                .with_max_level(tracing::Level::TRACE)
+                .with_max_level(tracing::Level::INFO)
                 .finish()
                 .with(ErrorLayer::default());
 
@@ -48,14 +48,14 @@ async fn main() -> eyre::Result<()> {
             let p2p_handle = tokio::spawn(async move {
                 let connection = connection_clone.clone();
                 let bootstrap_nodes =
-                    parse_bootstrap_nodes(std::env::var("BOOTSTRAP_NODES").unwrap()).unwrap();
+                    parse_bootstrap_nodes(config.env_config.bootstrap_nodes.clone()).unwrap();
                 p2p_init(
                     TOPIC,
                     config.env_config.p2p_listen_address.parse::<Multiaddr>().unwrap(),
                     bootstrap_nodes,
                     termination_receiver,
                     message_receiver,
-                    std::env::var("IDLE_TIMEOUT_DURATION").unwrap().parse::<u64>().unwrap(),
+                    config.env_config.idle_timeout_duration,
                     move |_peer_id, _message_id, message| {
                         let connection = connection.clone();
                         let config = config.clone();
@@ -76,10 +76,7 @@ async fn main() -> eyre::Result<()> {
             let app: Router =
                 Router::new().route("/query_payloads", post(query_payloads)).with_state(state);
             let server_handle = tokio::spawn(async move {
-                let addr = SocketAddr::from((
-                    [0, 0, 0, 0],
-                    std::env::var("SERVER_PORT").unwrap().parse::<u16>().unwrap(),
-                ));
+                let addr = SocketAddr::from(([0, 0, 0, 0], config_clone.env_config.server_port));
                 let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
                 let server1 = axum::serve(listener, app.into_make_service());
                 tracing::info!("Server is listening on {}", addr);

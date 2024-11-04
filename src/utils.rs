@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     contracts::{ContractManager, RecommendedWalletProvider},
     keypair::get_wallet_provider,
-    Bn254Kms, EthKms, WormholeOperator, WormholeOperatorCommand,
+    Bn254Kms, EthKms, EventSubscriptionMode, WormholeOperator, WormholeOperatorCommand,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -27,7 +27,7 @@ pub struct EnvConfig {
     pub p2p_listen_address: String,
     pub bootstrap_nodes: String,
     pub idle_timeout_duration: u64,
-    pub event_subscription_mode: String,
+    pub event_subscription_mode: EventSubscriptionMode,
     pub bn254_keystore_method: Bn254Kms,
     pub bn254_key_path: Option<String>,
     pub bn254_keystore_password: Option<String>,
@@ -177,7 +177,7 @@ pub async fn load_config(cli: WormholeOperator) -> Result<Config> {
             db_path,
             server_port,
             bn254_keystore_method: cli.bn254_kms,
-            bn254_key_path: cli.bn254_key_path,
+            bn254_key_path: cli.bn254_keystore_path,
             bn254_keystore_password: None,
             bn254_aws_access_key_id: cli.bn254_aws_access_key_id,
             bn254_aws_secret_access_key: cli.bn254_aws_secret_access_key,

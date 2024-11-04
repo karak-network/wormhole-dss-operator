@@ -4,21 +4,18 @@ use crate::{
     utils::{ChainConfig, ChainConfigData, JsonChainConfig},
     Bn254Kms, EthKms, WormholeOperator,
 };
-use dotenvy::dotenv;
-use serde::Deserialize;
-use tracing_error::ErrorLayer;
-use tracing_subscriber::{layer::SubscriberExt, FmtSubscriber};
-
 use alloy::{
     primitives::{Address, Bytes},
     providers::{Provider, WalletProvider},
     sol_types::SolValue,
 };
+use dotenvy::dotenv;
 use eyre::Result;
 use karak_rs::{
     contracts::Core::CoreInstance,
     kms::keypair::{bn254::bls::registration::BlsRegistration, traits::Keypair},
 };
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct EnvConfig {
@@ -80,7 +77,7 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
 
     let mut config = EnvConfig {
         bn254_keystore_method: cli.bn254_kms,
-        bn254_key_path: cli.bn254_key_path,
+        bn254_key_path: cli.bn254_keystore_path,
         bn254_keystore_password: None,
         bn254_aws_access_key_id: cli.bn254_aws_access_key_id,
         bn254_aws_secret_access_key: cli.bn254_aws_secret_access_key,
@@ -99,13 +96,6 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
 
     let json_chain_config: JsonChainConfig =
         serde_json::from_str(&std::fs::read_to_string("config.json")?)?;
-
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
-        .finish()
-        .with(ErrorLayer::default());
-
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
 
     if Bn254Kms::Local == config.bn254_keystore_method {
         config.bn254_keystore_password =
@@ -133,56 +123,69 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
     .await?;
 
     for chain_config in json_chain_config.chains {
-        let keypair_clone = keypair.clone();
-        let chain_data = parse_chain_config(chain_config, &config).await?;
+        if chain_config.listen {
+            let keypair_clone = keypair.clone();
+            let chain_data = parse_chain_config(chain_config, &config).await?;
 
-        let operator_address = chain_data.ws_rpc_provider.wallet().default_signer().address();
+            let operator_address = chain_data.ws_rpc_provider.wallet().default_signer().address();
 
-        println!("Operator address: {}", operator_address);
-
-        println!("Registering operator with Wormhole DSS");
-        let bls_registration = BlsRegistration {
-            g1_pubkey: keypair_clone.public_key().g1,
-            g2_pubkey: keypair_clone.public_key().g2,
-            signature: sign_hash(
-                Bytes::from(
-                    chain_data
-                        .wormhole_dss_manager
-                        .wormhole_dss_instance
-                        .REGISTRATION_MESSAGE_HASH()
-                        .call()
-                        .await?
-                        ._0,
-                ),
-                keypair_clone,
-            ),
-        };
-
-        let is_operator_registered = chain_data
-            .core_instance
-            .isOperatorRegisteredToDSS(
+            tracing::info!(
+                "Registering operator {} with Wormhole DSS on chain_id {}",
                 operator_address,
-                *chain_data.wormhole_dss_manager.wormhole_dss_instance.address(),
-            )
-            .call()
-            .await?
-            ._0;
+                chain_data.wormhole_chain_id
+            );
+            let bls_registration = BlsRegistration {
+                g1_pubkey: keypair_clone.public_key().g1,
+                g2_pubkey: keypair_clone.public_key().g2,
+                signature: sign_hash(
+                    Bytes::from(
+                        chain_data
+                            .wormhole_dss_manager
+                            .wormhole_dss_instance
+                            .REGISTRATION_MESSAGE_HASH()
+                            .call()
+                            .await?
+                            ._0,
+                    ),
+                    keypair_clone,
+                ),
+            };
 
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let nonce = chain_data.ws_rpc_provider.get_transaction_count(operator_address).await?;
-        println!("Is Registered: {}", is_operator_registered);
-        if !is_operator_registered {
-            chain_data
+            let is_operator_registered = chain_data
                 .core_instance
-                .registerOperatorToDSS(
+                .isOperatorRegisteredToDSS(
+                    operator_address,
                     *chain_data.wormhole_dss_manager.wormhole_dss_instance.address(),
-                    bls_registration.abi_encode().into(),
                 )
-                .nonce(nonce)
-                .send()
+                .call()
                 .await?
-                .get_receipt()
-                .await?;
+                ._0;
+
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let nonce = chain_data.ws_rpc_provider.get_transaction_count(operator_address).await?;
+            tracing::info!(
+                "Operator is already registered on chain {}: {}",
+                chain_data.wormhole_chain_id,
+                is_operator_registered
+            );
+            if !is_operator_registered {
+                chain_data
+                    .core_instance
+                    .registerOperatorToDSS(
+                        *chain_data.wormhole_dss_manager.wormhole_dss_instance.address(),
+                        bls_registration.abi_encode().into(),
+                    )
+                    .nonce(nonce)
+                    .send()
+                    .await?
+                    .get_receipt()
+                    .await?;
+                tracing::info!(
+                    "Operator registered Successfully on chain {}: {}",
+                    chain_data.wormhole_chain_id,
+                    is_operator_registered
+                );
+            }
         }
     }
 

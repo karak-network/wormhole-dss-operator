@@ -29,7 +29,7 @@ where
         idle_timeout_duration,
     )?;
 
-    println!("peer id: {}", karak_p2p.peer_id());
+    tracing::info!("peer id: {}", karak_p2p.peer_id());
 
     tokio::spawn(async move { karak_p2p.start_listening(on_incoming_message).await.unwrap() });
     Ok(())

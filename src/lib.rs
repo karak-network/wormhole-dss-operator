@@ -37,6 +37,14 @@ const CLAP_STYLING: Styles = Styles::styled()
     .literal(AnsiColor::Green.on_default())
     .placeholder(AnsiColor::Green.on_default());
 
+#[derive(Deserialize, Clone, Copy, Debug, ValueEnum, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum EventSubscriptionMode {
+    Latest,
+    Safe,
+    Finalized,
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum WormholeOperatorCommand {
@@ -47,16 +55,16 @@ pub enum WormholeOperatorCommand {
         #[arg(long, env)]
         bootstrap_nodes: String,
 
-        #[arg(long, env)]
+        #[arg(short, long, env)]
         idle_timeout_duration: u64,
 
-        #[arg(long, env)]
-        event_subscription_mode: String,
+        #[arg(short, long, default_value = "latest", env)]
+        event_subscription_mode: EventSubscriptionMode,
 
-        #[arg(long, env)]
+        #[arg(short, long, env)]
         db_path: String,
 
-        #[arg(long, env)]
+        #[arg(short, long, env)]
         server_port: u16,
     },
 
@@ -73,7 +81,7 @@ pub struct WormholeOperator {
     pub bn254_kms: Bn254Kms,
 
     #[arg(long, env, required_if_eq("bn254_kms", "local"), global = true)]
-    pub bn254_key_path: Option<String>,
+    pub bn254_keystore_path: Option<String>,
 
     #[arg(long, env, required_if_eq("bn254_kms", "aws"), global = true)]
     pub bn254_aws_access_key_id: Option<String>,
@@ -90,7 +98,7 @@ pub struct WormholeOperator {
     #[arg(long, env, required_if_eq("bn254_kms", "aws"), global = true)]
     pub bn254_aws_password: Option<String>,
 
-    #[arg(long, env, default_value = "env", global = true)]
+    #[arg(long, env, default_value = "local", global = true)]
     pub eth_kms: EthKms,
 
     #[arg(long, env, required_if_eq("eth_kms", "env"), global = true)]

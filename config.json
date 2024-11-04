@@ -1,19 +1,20 @@
 {
-    "chains": [{
-        "name": "Ethereum Sepolia",
-        "wormhole_chain_id": 10002,
-        "wormhole_dss_address": "0x258831202A5055F4cdCF62aDAfB71c83fa7C1a39",
-        "core_address": "0xb3E2dA61df98E44457190383e1FF13e1ea13280b",
-        "ws_rpc_url": "wss://sepolia.infura.io/ws/v3/8c7cf2bf16f649cb99735f9aaedb280a",
-        "listen": true
-    },
-    {
-        "name": "Arbitrum Sepolia",
-        "wormhole_chain_id": 10003,
-        "wormhole_dss_address": "0x63F9c7425f7d8c4EBC23d4e0A04f3e2c4E86D3dE",
-        "core_address": "0x792a05d0687195a96FA49446275569b539271340",
-        "ws_rpc_url": "wss://arbitrum-sepolia.infura.io/ws/v3/8c7cf2bf16f649cb99735f9aaedb280a",
-        "listen": true
-    }
-]
+    "chains": [
+        {
+            "name": "Ethereum Sepolia",
+            "wormhole_chain_id": 10002,
+            "wormhole_dss_address": "0x258831202A5055F4cdCF62aDAfB71c83fa7C1a39",
+            "core_address": "0xb3E2dA61df98E44457190383e1FF13e1ea13280b",
+            "ws_rpc_url": "<WS_RPC_URL",
+            "listen": true
+        },
+        {
+            "name": "Arbitrum Sepolia",
+            "wormhole_chain_id": 10003,
+            "wormhole_dss_address": "0x4FD53e39B66EdfD8457683df963580516b6069d5",
+            "core_address": "0x5dFfdF5293A81Bd8D98Cc5f1E4Ac10477E4d6Ef8",
+            "ws_rpc_url": "<WS_RPC_URL>",
+            "listen": true
+        }
+    ]
 }
