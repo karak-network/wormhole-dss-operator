@@ -1,6 +1,11 @@
 {
     "abi": [
         {
+            "type": "constructor",
+            "inputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
             "type": "function",
             "name": "REGISTRATION_MESSAGE_HASH",
             "inputs": [],
@@ -40,37 +45,6 @@
         },
         {
             "type": "function",
-            "name": "cancelSlashingHook",
-            "inputs": [
-                {
-                    "name": "operator",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "cancelUpdateStakeHook",
-            "inputs": [
-                {
-                    "name": "operator",
-                    "type": "address",
-                    "internalType": "address"
-                },
-                {
-                    "name": "vault",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "deliveryPrice",
             "inputs": [
                 {
@@ -90,12 +64,56 @@
         },
         {
             "type": "function",
-            "name": "finishSlashingHook",
+            "name": "finishUpdateStakeHook",
             "inputs": [
                 {
                     "name": "operator",
                     "type": "address",
                     "internalType": "address"
+                },
+                {
+                    "name": "queuedStakeUpdate",
+                    "type": "tuple",
+                    "internalType": "struct IBaseDSS.QueuedStakeUpdate",
+                    "components": [
+                        {
+                            "name": "nonce",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        },
+                        {
+                            "name": "startTimestamp",
+                            "type": "uint48",
+                            "internalType": "uint48"
+                        },
+                        {
+                            "name": "operator",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "updateRequest",
+                            "type": "tuple",
+                            "internalType": "struct IBaseDSS.StakeUpdateRequest",
+                            "components": [
+                                {
+                                    "name": "vault",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "dss",
+                                    "type": "address",
+                                    "internalType": "contract IBaseDSS"
+                                },
+                                {
+                                    "name": "toStake",
+                                    "type": "bool",
+                                    "internalType": "bool"
+                                }
+                            ]
+                        }
+                    ]
                 }
             ],
             "outputs": [],
@@ -103,7 +121,7 @@
         },
         {
             "type": "function",
-            "name": "finishUpdateStakeHook",
+            "name": "getActiveVaults",
             "inputs": [
                 {
                     "name": "operator",
@@ -111,8 +129,27 @@
                     "internalType": "address"
                 }
             ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address[]",
+                    "internalType": "address[]"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getRegisteredOperators",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address[]",
+                    "internalType": "address[]"
+                }
+            ],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -121,16 +158,45 @@
                 {
                     "name": "_core",
                     "type": "address",
-                    "internalType": "contract ICore"
+                    "internalType": "address"
                 },
                 {
-                    "name": "_baseDeliveryPrice",
+                    "name": "_stakeViewer",
+                    "type": "address",
+                    "internalType": "contract IStakeViewer"
+                },
+                {
+                    "name": "maxSlashablePercentageWad",
                     "type": "uint256",
                     "internalType": "uint256"
+                },
+                {
+                    "name": "thresholdPercentage",
+                    "type": "uint8",
+                    "internalType": "uint8"
                 }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "isOperatorJailed",
+            "inputs": [
+                {
+                    "name": "operator",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -166,6 +232,48 @@
         },
         {
             "type": "function",
+            "name": "isThresholdReached",
+            "inputs": [
+                {
+                    "name": "stakeViewer",
+                    "type": "address",
+                    "internalType": "contract IStakeViewer"
+                },
+                {
+                    "name": "allOperators",
+                    "type": "address[]",
+                    "internalType": "address[]"
+                },
+                {
+                    "name": "nonSigningOperators",
+                    "type": "address[]",
+                    "internalType": "address[]"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "kickOperator",
+            "inputs": [
+                {
+                    "name": "operator",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "msgToHash",
             "inputs": [
                 {
@@ -195,7 +303,7 @@
             ],
             "outputs": [
                 {
-                    "name": "",
+                    "name": "g1Point",
                     "type": "tuple",
                     "internalType": "struct BN254.G1Point",
                     "components": [
@@ -225,20 +333,8 @@
                 },
                 {
                     "name": "nonSigningOperators",
-                    "type": "tuple[]",
-                    "internalType": "struct BN254.G1Point[]",
-                    "components": [
-                        {
-                            "name": "X",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        },
-                        {
-                            "name": "Y",
-                            "type": "uint256",
-                            "internalType": "uint256"
-                        }
-                    ]
+                    "type": "address[]",
+                    "internalType": "address[]"
                 },
                 {
                     "name": "aggG2Pubkey",
@@ -306,19 +402,6 @@
         },
         {
             "type": "function",
-            "name": "registerDSS",
-            "inputs": [
-                {
-                    "name": "wadPercentage",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "registrationHook",
             "inputs": [
                 {
@@ -344,24 +427,6 @@
         },
         {
             "type": "function",
-            "name": "requestSlashingHook",
-            "inputs": [
-                {
-                    "name": "operator",
-                    "type": "address",
-                    "internalType": "address"
-                },
-                {
-                    "name": "slashingPercentagesWad",
-                    "type": "uint256[]",
-                    "internalType": "uint256[]"
-                }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "requestUpdateStakeHook",
             "inputs": [
                 {
@@ -372,7 +437,7 @@
                 {
                     "name": "newStake",
                     "type": "tuple",
-                    "internalType": "struct Operator.StakeUpdateRequest",
+                    "internalType": "struct IBaseDSS.StakeUpdateRequest",
                     "components": [
                         {
                             "name": "vault",
@@ -382,7 +447,7 @@
                         {
                             "name": "dss",
                             "type": "address",
-                            "internalType": "contract IDSS"
+                            "internalType": "contract IBaseDSS"
                         },
                         {
                             "name": "toStake",
@@ -484,7 +549,7 @@
             "name": "supportsInterface",
             "inputs": [
                 {
-                    "name": "interfaceID",
+                    "name": "interfaceId",
                     "type": "bytes4",
                     "internalType": "bytes4"
                 }
@@ -496,7 +561,7 @@
                     "internalType": "bool"
                 }
             ],
-            "stateMutability": "view"
+            "stateMutability": "pure"
         },
         {
             "type": "function",
@@ -532,15 +597,74 @@
                     "name": "operator",
                     "type": "address",
                     "internalType": "address"
-                },
-                {
-                    "name": "_extraData",
-                    "type": "bytes",
-                    "internalType": "bytes"
                 }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "verifySignature",
+            "inputs": [
+                {
+                    "name": "g1Key",
+                    "type": "tuple",
+                    "internalType": "struct BN254.G1Point",
+                    "components": [
+                        {
+                            "name": "X",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "Y",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "name": "g2Key",
+                    "type": "tuple",
+                    "internalType": "struct BN254.G2Point",
+                    "components": [
+                        {
+                            "name": "X",
+                            "type": "uint256[2]",
+                            "internalType": "uint256[2]"
+                        },
+                        {
+                            "name": "Y",
+                            "type": "uint256[2]",
+                            "internalType": "uint256[2]"
+                        }
+                    ]
+                },
+                {
+                    "name": "sign",
+                    "type": "tuple",
+                    "internalType": "struct BN254.G1Point",
+                    "components": [
+                        {
+                            "name": "X",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "Y",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "name": "msgHash",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "view"
         },
         {
             "type": "event",
@@ -670,6 +794,11 @@
         },
         {
             "type": "error",
+            "name": "CallerNotCore",
+            "inputs": []
+        },
+        {
+            "type": "error",
             "name": "InsufficientPayment",
             "inputs": []
         },
@@ -696,17 +825,27 @@
         },
         {
             "type": "error",
-            "name": "NotEnoughOperatorsForMajority",
-            "inputs": []
-        },
-        {
-            "type": "error",
             "name": "NotInitializing",
             "inputs": []
         },
         {
             "type": "error",
             "name": "NotOwner",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "OperatorAlreadyRegistered",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "OperatorAndIndexDontMatch",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "OperatorIsNotRegistered",
             "inputs": []
         },
         {
@@ -733,6 +872,11 @@
         },
         {
             "type": "error",
+            "name": "PairingNotSuccessful",
+            "inputs": []
+        },
+        {
+            "type": "error",
             "name": "RequireContractIsNotPaused",
             "inputs": []
         },
@@ -744,6 +888,16 @@
         {
             "type": "error",
             "name": "SenderNotOperator",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "SignatureVerificationFailed",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ThresholdNotReached",
             "inputs": []
         }
     ]

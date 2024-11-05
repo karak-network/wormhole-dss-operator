@@ -1,3 +1,4 @@
+use crate::keypair::G1PointAffine;
 use alloy::{
     network::{Ethereum, EthereumWallet},
     primitives::Address,
@@ -14,15 +15,6 @@ use alloy::{
 use thiserror::Error;
 use WormholeDSS::WormholeDSSInstance;
 use BN254::G1Point;
-
-use crate::keypair::G1PointAffine;
-
-sol!(
-    #[allow(clippy::too_many_arguments)]
-    #[sol(rpc)]
-    Wormhole,
-    "abi/wormhole.json"
-);
 
 sol!(
     #[allow(clippy::too_many_arguments)]
@@ -132,7 +124,7 @@ impl ContractManager {
             .await
             .map_err(|_| TaskError::ContractCallError)
             .unwrap()
-            ._0;
+            .g1Point;
         Ok((g1_key.0, g1_key.1) == (operator_g1_key.X, operator_g1_key.Y))
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     },
     utils::Config,
 };
+use alloy::primitives::Address;
 use axum::{extract::State, Json};
 use karak_rs::kms::keypair::bn254::algebra::{g1::G1Point, g2::G2Point};
 use rusqlite::{params, Connection};
@@ -27,13 +28,12 @@ pub struct OperatorData {
     pub bls_public_key_g1: G1PointAffine,
     pub bls_public_key_g2: G2PointAffine,
     pub operator_address: String,
-    pub unsigned_payload: String,
     pub signature: G1PointAffine,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct PayloadResponse {
-    pub non_signing_operators: Vec<G1PointAffine>,
+    pub non_signing_operators: Vec<Address>,
     pub aggregated_g1_key: G1PointAffine,
     pub aggregated_g2_key: G2PointAffine,
     pub aggregated_sign: G1PointAffine,
@@ -69,7 +69,6 @@ pub async fn query_payloads(
                 bls_public_key_g2: <G2PointAffine>::from(g2_point_from_bytes_string(row.get(1)?)),
                 operator_address: row.get(2)?,
                 signature: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(3)?)),
-                unsigned_payload: row.get(4)?,
             })
         })
         .expect("Failed to execute query")
@@ -82,21 +81,25 @@ pub async fn query_payloads(
     let dst_chain_config =
         state.config.lock().await.chain_config.chains.get(&dst_chain_id).unwrap().clone();
 
-    let all_operator_g1_keys =
-        dst_chain_config.wormhole_dss_manager.get_all_operator_g1_keys().await.unwrap();
-    let all_operator_g1_keys =
-        all_operator_g1_keys.into_iter().map(|key| (key.X, key.Y)).collect::<Vec<G1PointAffine>>();
+    let all_operator_public_keys = dst_chain_config
+        .wormhole_dss_manager
+        .wormhole_dss_instance
+        .getRegisteredOperators()
+        .call()
+        .await
+        .unwrap()
+        ._0;
 
     let signing_operators = signing_operator_data
         .iter()
-        .map(|payload| payload.bls_public_key_g1)
-        .collect::<Vec<G1PointAffine>>();
+        .map(|payload| payload.operator_address.parse::<Address>().unwrap())
+        .collect::<Vec<Address>>();
 
-    let non_signing_operators = all_operator_g1_keys
+    let non_signing_operators = all_operator_public_keys
         .iter()
         .filter(|key| !signing_operators.contains(key))
         .cloned()
-        .collect::<Vec<G1PointAffine>>();
+        .collect::<Vec<Address>>();
 
     let aggregated_g1_key = signing_operator_data
         .iter()
