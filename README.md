@@ -209,11 +209,16 @@ wormhole-operator register
 
 ### Deployment
 
+_Boot Node_ :
+```
+BOOTSTRAP_NODES = "[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/8085"}]"
+```
+
 Fill out the `.env` with the following environment variables:
 
 ```
 LISTEN_ADDR=/ip4/0.0.0.0/tcp/8085
-BOOTSTRAP_NODES='[{peer_id: "12D3KooWLygH1RhePYmXRjM5XhXuPxzRpeXjMedmmB98TFgwDsvG", address: "/ip4/127.0.0.1/tcp/65056"}]'
+BOOTSTRAP_NODES='[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/65056"}]'
 IDLE_TIMEOUT_DURATION=
 DB_PATH=
 SERVER_PORT=
@@ -291,7 +296,7 @@ wormhole-operator run \
     --eth-keystore-path ~/.karak/0xE78a315E5FC205cE64c7a5f8ad88AC5E2Bc2F826.json
     --event-subscription-mode latest \
     --p2p-listen-address /ip4/0.0.0.0/tcp/8085 \
-    --bootstrap-nodes "[{peer_id: "12D3KooWNsY2874ai6jVdYAWy3yPCx1MhnRddNwNMn54UEVoA9ik", address: "/ip4/65.1.181.93/tcp/8085"}]" \
+    --bootstrap-nodes "[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/8085"}]" \
     --idle-timeout-duration 60 \
     --server-port 3000 \
     --db-path wormhole.db \
