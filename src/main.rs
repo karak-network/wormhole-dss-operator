@@ -25,20 +25,20 @@ async fn main() -> eyre::Result<()> {
 
     let cli = WormholeOperator::parse();
 
+    //tracing subscriber
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(tracing::Level::INFO)
+        .finish()
+        .with(ErrorLayer::default());
+
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
+
     match cli.command {
         WormholeOperatorCommand::Run { .. } => {
             let config = load_config(cli).await?;
             let connection =
                 Arc::new(Mutex::new(Connection::open(config.clone().env_config.db_path)?));
             let connection_clone = connection.clone();
-
-            //tracing subscriber
-            let subscriber = FmtSubscriber::builder()
-                .with_max_level(tracing::Level::INFO)
-                .finish()
-                .with(ErrorLayer::default());
-
-            tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
 
             let config_clone = config.clone();
 
