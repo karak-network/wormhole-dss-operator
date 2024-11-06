@@ -1,5 +1,7 @@
 # Wormhole DSS
 
+The Wormhole DSS (Distributed Secure Service) operates alongside the main Wormhole path to process NTT transfers. It features a fully decentralized network of operators who participate in consensus through a stake-weighted voting system. Under this system, operators with higher staked assets (and thus greater economic security) have proportionally more influence in the consensus process. To implement Wormhole DSS validation for your NTT token transfers, you can follow the setup instructions in the wormhole-dss-contracts documentation
+
 ## Operator Setup Guide
 
 This guide will help you set up and run the Wormhole DSS Operator.
@@ -35,7 +37,7 @@ For both running and registering an operator you need to have a `config.json` fi
     "chains": [{
         "name": "Ethereum Sepolia",
         "wormhole_chain_id": 10002,
-        "wormhole_dss_address": "0xb725593Cba23f8d5D5EA9122afaD360dE34716c2",
+        "wormhole_dss_address": "0x5F7B34F05Ca3EC4Ae2f5D050719267f8FE4e3736",
         "core_address": "0xb3E2dA61df98E44457190383e1FF13e1ea13280b",
         "ws_rpc_url": "<WS_RPC_URL>",
         "listen": true
@@ -43,7 +45,7 @@ For both running and registering an operator you need to have a `config.json` fi
     {
         "name": "Arbitrum Sepolia",
         "wormhole_chain_id": 10003,
-        "wormhole_dss_address": "0x22E5941D466B9EAe55744de12A80d1c4F48eb5BD",
+        "wormhole_dss_address": "0x9BBf7a6b12eeEdD31943c83D646053ccE0F1cd4D",
         "core_address": "0x792a05d0687195a96FA49446275569b539271340",
         "ws_rpc_url": "<WS_RPC_URL>",
         "listen": true
@@ -164,11 +166,6 @@ karak operator --help
 
 to see all the available options.
 
-### Registering the Operator with Core
-
-Follow the steps [here](https://docs.karak.network/operators/registration) for Karak Operator registration.
-
-
 ### Registering the Operator with Wormhole
 Run the following command to register the operator:
 
@@ -217,7 +214,7 @@ BOOTSTRAP_NODES = "[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7f
 Fill out the `.env` with the following environment variables:
 
 ```
-LISTEN_ADDR=/ip4/0.0.0.0/tcp/8085
+P2P_LISTEN_ADDRESS=/ip4/0.0.0.0/tcp/8085
 BOOTSTRAP_NODES='[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/65056"}]'
 IDLE_TIMEOUT_DURATION=
 DB_PATH=
