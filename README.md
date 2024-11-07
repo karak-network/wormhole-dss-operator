@@ -113,6 +113,44 @@ For the other assets, you can mint them yourself.
 
 <!-- TODO: Add mint command -->
 
+### Registering the Operator with Wormhole
+Run the following command to register the operator:
+
+__You need to have Eth for gas on all the chains you want to register to__
+
+```bash
+wormhole-operator register \
+    --bn254-kms local/aws \
+    --bn254-keystore-path <BN254_KEY_PATH(if local)> \
+    --bn254-aws-access-key_id <BN254_AWS_ACCESS_KEY_ID(if aws)> \
+    --bn254-aws-secret-access-key <BN254_AWS_SECRET_ACCESS_KEY(if aws)> \
+    --bn254-aws-default-region <BN254_AWS_DEFAULT_REGION(if aws)> \
+    --bn254-aws-password <BN254_AWS_PASSWORD(if aws)> \
+    --bn254-aws-key-name <BN254_AWS_KEY_NAME(if aws)> \
+    --eth-kms env/local/aws \
+    --eth-private-key <ETH_PRIVATE_KEY(if env)> \
+    --eth-keystore-path <ETH_KEYSTORE_PATH(if local)> \
+    --eth-aws-key-id <ETH_AWS_KEY_ID(if aws)> \
+    --eth-aws-access-key-id <ETH_AWS_ACCESS_KEY_ID(if aws)> \
+    --eth-aws-secret-access-key <ETH_AWS_SECRET_ACCESS_KEY(if aws)> \
+    --eth-aws-region <ETH_AWS_REGION(if aws)> \
+    --eth-aws-key-name <ETH_AWS_KEY_NAME(if aws)> \
+```
+
+Example using bn254 local keystore and eth local keystore:
+
+```bash
+wormhole-operator register\
+    --bn254-keystore-path bls_keypair.keypair \
+    --eth-keystore-path ~/.karak/0xE78a315E5FC205cE64c7a5f8ad88AC5E2Bc2F826.json
+```
+
+Alternatively, you can put those arguments in an `.env` file or directly export to your environment and run:
+
+```bash
+wormhole-operator register
+```
+
 ### Stake the vault to Wormhole DSS
 
 #### Request update stake
@@ -155,8 +193,13 @@ where
 
 For Sepolia, you can use these addresses:
 
-- `WORMHOLE_DSS_ADDRESS`: `0x0e64c3c675dae7537A9fC1E925E2a87e164f7f53`
+- `WORMHOLE_DSS_ADDRESS`: `0x5F7B34F05Ca3EC4Ae2f5D050719267f8FE4e3736`
 - `CORE_ADDRESS`: `0xb3E2dA61df98E44457190383e1FF13e1ea13280b`
+
+For Arbitrum Sepolia you can use these addresses:
+
+- `WORMHOLE_DSS_ADDRESS`: `0x9BBf7a6b12eeEdD31943c83D646053ccE0F1cd4D`
+- `CORE_ADDRESS`: `0x5681e45eec5e841c5BFe6Da7d98aD019F78e759c`
 
 Note: You can also use AWS KMS instead of a local keystore. Run
 
@@ -166,56 +209,21 @@ karak operator --help
 
 to see all the available options.
 
-### Registering the Operator with Wormhole
-Run the following command to register the operator:
 
-__You need to have Eth for gas on all the chains you want to register to__
 
-```bash
-wormhole-operator register \
-    --bn254-kms local/aws \
-    --bn254-keystore-path <BN254_KEY_PATH(if local)> \
-    --bn254-aws-access-key_id <BN254_AWS_ACCESS_KEY_ID(if aws)> \
-    --bn254-aws-secret-access-key <BN254_AWS_SECRET_ACCESS_KEY(if aws)> \
-    --bn254-aws-default-region <BN254_AWS_DEFAULT_REGION(if aws)> \
-    --bn254-aws-password <BN254_AWS_PASSWORD(if aws)> \
-    --bn254-aws-key-name <BN254_AWS_KEY_NAME(if aws)> \
-    --eth-kms env/local/aws \
-    --eth-private-key <ETH_PRIVATE_KEY(if env)> \
-    --eth-keystore-path <ETH_KEYSTORE_PATH(if local)> \
-    --eth-aws-key-id <ETH_AWS_KEY_ID(if aws)> \
-    --eth-aws-access-key-id <ETH_AWS_ACCESS_KEY_ID(if aws)> \
-    --eth-aws-secret-access-key <ETH_AWS_SECRET_ACCESS_KEY(if aws)> \
-    --eth-aws-region <ETH_AWS_REGION(if aws)> \
-    --eth-aws-key-name <ETH_AWS_KEY_NAME(if aws)> \
-```
-
-Example using bn254 local keystore and eth local keystore:
-
-```bash
-wormhole-operator register\
-    --bn254-keystore-path bls_keypair.keypair \
-    --eth-keystore-path ~/.karak/0xE78a315E5FC205cE64c7a5f8ad88AC5E2Bc2F826.json
-```
-
-Alternatively, you can put those arguments in an `.env` file or directly export to your environment and run:
-
-```bash
-wormhole-operator register
-```
 
 ### Deployment
 
 _Boot Node_ :
 ```
-BOOTSTRAP_NODES = "[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/8085"}]"
+BOOTSTRAP_NODES = "[{peer_id: "12D3KooWARQsRzbvcizR8YtJyPA7sGcWWPL3kXqoZanTULdgwxFk", address: "/ip4/65.1.181.93/tcp/8085"}]"
 ```
 
 Fill out the `.env` with the following environment variables:
 
 ```
 P2P_LISTEN_ADDRESS=/ip4/0.0.0.0/tcp/8085
-BOOTSTRAP_NODES='[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/65056"}]'
+BOOTSTRAP_NODES='[{peer_id: "12D3KooWARQsRzbvcizR8YtJyPA7sGcWWPL3kXqoZanTULdgwxFk", address: "/ip4/65.1.181.93/tcp/65056"}]'
 IDLE_TIMEOUT_DURATION=
 DB_PATH=
 SERVER_PORT=
@@ -254,11 +262,11 @@ ETH_KEYSTORE_PATH=
 
 ### Running the Binary
 
-1. Keep the `.env` file in the directory you run the binary in. Or export the environment variables using:
+- Keep the `.env` file in the directory you run the binary in. Or export the environment variables using:
 ```bash 
 source .env
  ```
-2. Run the binary:
+- Or you can pass all the arguments as runtime parameters:
 
 ```bash 
 wormhole-operator run \
@@ -293,7 +301,7 @@ wormhole-operator run \
     --eth-keystore-path ~/.karak/0xE78a315E5FC205cE64c7a5f8ad88AC5E2Bc2F826.json
     --event-subscription-mode latest \
     --p2p-listen-address /ip4/0.0.0.0/tcp/8085 \
-    --bootstrap-nodes "[{peer_id: "12D3KooWEwGHWScxxked9JmLDo1yCvoFvSvRGQ6snvBizSH7ffYj", address: "/ip4/65.1.181.93/tcp/8085"}]" \
+    --bootstrap-nodes "[{peer_id: "12D3KooWARQsRzbvcizR8YtJyPA7sGcWWPL3kXqoZanTULdgwxFk", address: "/ip4/65.1.181.93/tcp/8085"}]" \
     --idle-timeout-duration 60 \
     --server-port 3000 \
     --db-path wormhole.db \
