@@ -99,15 +99,15 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
 
     if Bn254Kms::Local == config.bn254_keystore_method {
         config.bn254_keystore_password =
-            Some(rpassword::prompt_password("Please enter password for bn254 keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for bn254 keystore: ")?);
     }
     if Bn254Kms::Aws == config.bn254_keystore_method {
         config.bn254_aws_password =
-            Some(rpassword::prompt_password("Please enter password for aws keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for aws keystore: ")?);
     }
     if EthKms::Local == config.eth_kms {
         config.eth_keystore_password =
-            Some(rpassword::prompt_password("Please enter password for eth keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for eth keystore: ")?);
     }
 
     let keypair = prompt_load_keypair(

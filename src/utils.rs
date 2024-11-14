@@ -8,7 +8,7 @@ use alloy::{
             BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller,
             WalletFiller,
         },
-        Identity, RootProvider,
+        Identity, RootProvider, WalletProvider,
     },
     pubsub::PubSubFrontend,
 };
@@ -142,15 +142,15 @@ async fn get_chain_data(
 
     if Bn254Kms::Local == env_config.bn254_keystore_method {
         env_config.bn254_keystore_password =
-            Some(rpassword::prompt_password("Please enter password for bn254 keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for bn254 keystore: ")?);
     }
     if Bn254Kms::Aws == env_config.bn254_keystore_method {
         env_config.bn254_aws_password =
-            Some(rpassword::prompt_password("Please enter password for aws keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for aws keystore: ")?);
     }
     if EthKms::Local == env_config.eth_keystore_method {
         env_config.eth_keystore_password =
-            Some(rpassword::prompt_password("Please enter password for eth keystore: ").unwrap());
+            Some(rpassword::prompt_password("Please enter password for eth keystore: ")?);
     }
 
     for chain_config in json_chain_config.chains {
@@ -215,4 +215,25 @@ pub fn to_wormhole_format(address: Address) -> FixedBytes<32> {
     let value_u160: U160 = address.0.into();
     let value_u256: U256 = U256::from(value_u160);
     FixedBytes::from(value_u256)
+}
+
+pub async fn is_operator_registered_in_listening_chains(config: &Config) -> Result<bool> {
+    let mut is_registered = true;
+    for (_, chain_config) in config.chain_config.chains.clone() {
+        if chain_config.listen {
+            let operator_address = chain_config.ws_rpc_provider.default_signer_address();
+            if !chain_config
+                .wormhole_dss_manager
+                .is_operator_registered(operator_address.to_string())
+                .await?
+            {
+                is_registered = false;
+                tracing::warn!(
+                    "Operator is not registered in chain {}",
+                    chain_config.wormhole_chain_id
+                );
+            }
+        }
+    }
+    Ok(is_registered)
 }

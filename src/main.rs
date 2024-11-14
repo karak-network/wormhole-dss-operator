@@ -9,15 +9,21 @@ use rusqlite::Connection;
 use server::{query_payloads, AppState};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    task::JoinHandle,
+};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{layer::SubscriberExt, FmtSubscriber};
 use wormhole_operator::{
-    constants::TOPIC, events::run_event_listener, register::register_operator, utils::load_config,
+    constants::TOPIC,
+    events::run_event_listener,
+    register::register_operator,
+    utils::{is_operator_registered_in_listening_chains, load_config},
     WormholeOperator, WormholeOperatorCommand,
 };
 
-pub use wormhole_operator::{constants, contracts, error, events, keypair, p2p, server, table};
+pub use wormhole_operator::{constants, contracts, events, keypair, p2p, server, table};
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -36,65 +42,78 @@ async fn main() -> eyre::Result<()> {
     match cli.command {
         WormholeOperatorCommand::Run { .. } => {
             let config = load_config(cli).await?;
+            if !is_operator_registered_in_listening_chains(&config).await? {
+                panic!("Operator is not registered in all listening chains, please run register command first");
+            }
             let connection =
-                Arc::new(Mutex::new(Connection::open(config.clone().env_config.db_path)?));
-            let connection_clone = connection.clone();
+                Arc::new(Mutex::new(Connection::open(&config.env_config.db_path)?));
 
-            let config_clone = config.clone();
+            let connection_p2p = connection.clone();
+            let connection_server = connection.clone();
+            let connection_event_listener = connection.clone();
+
+            let config_p2p = config.clone();
+            let config_server = config.clone();
+            let config_event_listener = config.clone();
 
             // p2p
             let (_termination_signal, termination_receiver) = oneshot::channel::<()>();
             let (message_sender, message_receiver) = mpsc::channel::<GossipMessage<String>>(100);
-            let p2p_handle = tokio::spawn(async move {
-                let connection = connection_clone.clone();
+            let p2p_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
                 let bootstrap_nodes =
-                    parse_bootstrap_nodes(config.env_config.bootstrap_nodes.clone()).unwrap();
+                    parse_bootstrap_nodes(&config.env_config.bootstrap_nodes)?;
                 p2p_init(
                     TOPIC,
-                    config.env_config.p2p_listen_address.parse::<Multiaddr>().unwrap(),
+                    config.env_config.p2p_listen_address.parse::<Multiaddr>()?,
                     bootstrap_nodes,
                     termination_receiver,
                     message_receiver,
                     config.env_config.idle_timeout_duration,
                     move |_peer_id, _message_id, message| {
-                        let connection = connection.clone();
-                        let config = config.clone();
+                        let callback_connection = connection_p2p.clone();
+                        let callback_config = config_p2p.clone();
                         async move {
-                            handle_message_received(message, &connection, config).await;
+                            handle_message_received(message, callback_connection, callback_config)
+                                .await
+                                .unwrap_or_else(|e| panic!("Handle message received failed {}", e));
                         }
                     },
                 )
-                .await
-                .unwrap();
+                .await?;
+                Ok(())
             });
 
             // axum server
             let state = Arc::new(AppState {
-                db: connection.clone(),
-                config: Arc::new(Mutex::new(config_clone.clone())),
+                db: connection_server,
+                config: Arc::new(Mutex::new(config_server)),
             });
             let app: Router =
                 Router::new().route("/query_payloads", post(query_payloads)).with_state(state);
-            let server_handle = tokio::spawn(async move {
-                let addr = SocketAddr::from(([0, 0, 0, 0], config_clone.env_config.server_port));
-                let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-                let server1 = axum::serve(listener, app.into_make_service());
+            let server_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
+                let addr = SocketAddr::from(([0, 0, 0, 0], config.env_config.server_port));
+                let listener = tokio::net::TcpListener::bind(addr).await?;
+                axum::serve(listener, app.into_make_service()).await?;
                 tracing::info!("Server is listening on {}", addr);
-                if let Err(e) = server1.await {
-                    tracing::error!("Server 1 error: {}", e);
-                }
+
+                Ok(())
             });
 
-            let event_listener_handle = tokio::spawn(async move {
-                run_event_listener(config_clone, &connection, &message_sender, TOPIC)
-                    .await
-                    .unwrap_or_else(|e| panic!("Run event listeners failed {}", e));
+            let event_listener_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
+                run_event_listener(
+                    config_event_listener,
+                    &connection_event_listener,
+                    &message_sender,
+                    TOPIC,
+                )
+                .await?;
+
+                Ok(())
             });
 
-            let joined_handles = tokio::join!(server_handle, p2p_handle, event_listener_handle);
-            joined_handles.0.unwrap();
-            joined_handles.1.unwrap();
-            joined_handles.2.unwrap();
+            let _ = server_handle.await?;
+            let _ = p2p_handle.await?;
+            let _ = event_listener_handle.await?;
         }
         WormholeOperatorCommand::Register => {
             register_operator(cli).await?;

@@ -134,7 +134,7 @@ pub async fn run_event_listener(
                                 &topic,
                                 config.clone(),
                             )
-                            .await;
+                            .await?;
                         }
                         Err(e) => {
                             tracing::error!(
@@ -169,11 +169,11 @@ pub async fn handle_event_log_message_published(
     message_sender: &mpsc::Sender<GossipMessage<String>>,
     topic: &String,
     config: Config,
-) {
+) -> eyre::Result<()> {
     tracing::info!("Received event: {} on chain {}", event.message, src_chain_id);
 
     let abi_encoded_message: Bytes = abi::encode(&[
-        abi::Token::Address(H160::from_str(event.caller.to_string().as_str()).unwrap()),
+        abi::Token::Address(H160::from_str(event.caller.to_string().as_str())?),
         abi::Token::Uint(ethers_core::types::U256::from(event.sourceChain)),
         abi::Token::Uint(ethers_core::types::U256::from(event.recipientChain)),
         abi::Token::FixedBytes(event.sourceNttManager.to_vec()),
@@ -183,9 +183,9 @@ pub async fn handle_event_log_message_published(
     ])
     .into();
 
-    tracing::info!("ABI encoded message payload: {}", abi_encoded_message);
-    let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone());
+    let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone())?;
 
+    tracing::info!("ABI encoded message payload: {}", abi_encoded_message);
     tracing::info!("Signed payload: {}", signed_payload);
 
     let (operator_address, operator_signature) = get_operator_signed_message(
@@ -199,7 +199,7 @@ pub async fn handle_event_log_message_published(
         config.env_config.eth_aws_region.clone(),
         config.env_config.eth_aws_key_name.clone(),
     )
-    .await;
+    .await?;
 
     insert_payload(
         connection,
@@ -209,12 +209,12 @@ pub async fn handle_event_log_message_published(
             message_event: event.message.to_string(),
             signed_payload: signed_payload.clone(),
             unsigned_payload: abi_encoded_message.clone(),
-            bls_public_key_g1: Bytes::from(dss_context.keypair.public_key().g1.to_bytes().unwrap()),
-            bls_public_key_g2: Bytes::from(dss_context.keypair.public_key().g2.to_bytes().unwrap()),
+            bls_public_key_g1: Bytes::from(dss_context.keypair.public_key().g1.to_bytes()?),
+            bls_public_key_g2: Bytes::from(dss_context.keypair.public_key().g2.to_bytes()?),
             operator_address: operator_address.to_string(),
             operator_signature,
         },
-        from_wormhole_format(event.recipientNttManager).unwrap().to_string(),
+        from_wormhole_format(event.recipientNttManager)?.to_string(),
     )
     .await
     .unwrap_or_else(|e| {
@@ -227,16 +227,12 @@ pub async fn handle_event_log_message_published(
         message_event: event.message.to_string(),
         unsigned_payload: BASE64_STANDARD.encode(abi_encoded_message.clone()),
         signed_payload: BASE64_STANDARD.encode(signed_payload.clone()),
-        bls_public_key_g2: BASE64_STANDARD
-            .encode(dss_context.keypair.public_key().g2.to_bytes().unwrap()),
-        bls_public_key_g1: BASE64_STANDARD
-            .encode(dss_context.keypair.public_key().g1.to_bytes().unwrap()),
+        bls_public_key_g2: BASE64_STANDARD.encode(dss_context.keypair.public_key().g2.to_bytes()?),
+        bls_public_key_g1: BASE64_STANDARD.encode(dss_context.keypair.public_key().g1.to_bytes()?),
         operator_address: operator_address.clone().to_string(),
         operator_signature: BASE64_STANDARD
             .encode(Bytes::from(operator_signature.clone().as_bytes())),
-        destination_ntt_manager: from_wormhole_format(event.recipientNttManager)
-            .unwrap()
-            .to_string(),
+        destination_ntt_manager: from_wormhole_format(event.recipientNttManager)?.to_string(),
     };
 
     message_sender
@@ -248,13 +244,15 @@ pub async fn handle_event_log_message_published(
         .unwrap_or_else(|e| {
             tracing::error!("Failed to send message: {}", e);
         });
+
+    Ok(())
 }
 
 pub async fn handle_message_received(
     message: Message,
-    connection: &Arc<Mutex<Connection>>,
+    connection: Arc<Mutex<Connection>>,
     config: Config,
-) {
+) -> eyre::Result<()> {
     let message_string = String::from_utf8_lossy(&message.data);
     let wormhole_message =
         WormholeMessage::from_base64(&message_string).expect("Failed to decode message");
@@ -262,20 +260,19 @@ pub async fn handle_message_received(
     tracing::info!("Received message: {:?}", wormhole_message);
 
     let unsigned_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload.clone()).unwrap());
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload.clone())?);
     let signed_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload.clone()).unwrap());
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload.clone())?);
     let bls_public_key_g2 =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g2.clone()).unwrap());
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g2.clone())?);
     let bls_public_key_g1 =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g1.clone()).unwrap());
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g1.clone())?);
     let operator_address = wormhole_message.operator_address.clone();
     let operator_signature = Signature::from_str(
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.operator_signature.clone()).unwrap())
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.operator_signature.clone())?)
             .to_string()
             .as_str(),
-    )
-    .unwrap();
+    )?;
 
     if !verify_operator_and_registration(
         OperatorData {
@@ -292,14 +289,14 @@ pub async fn handle_message_received(
         operator_signature,
         config.clone(),
     )
-    .await
+    .await?
     {
         tracing::error!("Verification of operator and registration failed");
-        return;
+        return Err(eyre::eyre!("Verification of operator and registration failed"));
     }
 
     insert_payload(
-        connection,
+        &connection,
         OperatorData {
             src_chain_id: wormhole_message.src_chain_id,
             dst_chain_id: wormhole_message.dst_chain_id,
@@ -317,20 +314,22 @@ pub async fn handle_message_received(
     .unwrap_or_else(|e| {
         tracing::error!("Failed to insert payload: {}", e);
     });
+
+    Ok(())
 }
 
 async fn verify_operator_and_registration(
     operator_data: OperatorData,
     operator_signature: Signature,
     config: Config,
-) -> bool {
+) -> eyre::Result<bool> {
     let dst_chain_config = config
         .chain_config
         .chains
         .get(&operator_data.dst_chain_id)
         .unwrap_or_else(|| panic!("Chain id {} not found", operator_data.dst_chain_id));
 
-    keypair::verify(
+    let is_valid = keypair::verify(
         operator_data.signed_payload.clone(),
         operator_data.unsigned_payload.clone(),
         operator_data.bls_public_key_g2.clone(),
@@ -340,22 +339,21 @@ async fn verify_operator_and_registration(
         operator_data.signed_payload.clone(),
         operator_data.unsigned_payload.clone(),
     ) && operator_signature
-        .recover_address_from_msg(operator_data.unsigned_payload.to_string().as_bytes())
-        .unwrap()
-        == operator_data.operator_address.clone().parse::<Address>().unwrap()
+        .recover_address_from_msg(operator_data.unsigned_payload.to_string().as_bytes())?
+        == operator_data.operator_address.clone().parse::<Address>()?
         && dst_chain_config
             .wormhole_dss_manager
             .is_operator_registered(operator_data.operator_address.clone())
-            .await
-            .unwrap()
+            .await?
         && dst_chain_config
             .wormhole_dss_manager
             .operator_address_matches_g1_key(
                 operator_data.operator_address.clone(),
                 <G1PointAffine>::from(g1_point_from_bytes_string(
                     operator_data.bls_public_key_g1.to_string(),
-                )),
+                )?),
             )
-            .await
-            .unwrap()
+            .await?;
+
+    Ok(is_valid)
 }

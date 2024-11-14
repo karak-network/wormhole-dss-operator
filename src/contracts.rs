@@ -44,23 +44,11 @@ pub enum TaskError {
     #[error("Contract call error")]
     ContractCallError,
 
-    #[error("Failed to submit task error: {0}")]
-    SubmitTaskError(String),
-
     #[error("Operator not found")]
     OperatorNotFound,
 
-    #[error("Majority not reached")]
-    MajorityNotReached,
-
-    #[error("JSON parsing error: {0}")]
-    SerdeError(#[from] serde_json::Error),
-
-    #[error("Failed to load contract JSON: {0}")]
-    LoadContractJsonError(String),
-
-    #[error("Custom URL error: {0}")]
-    CustomUrlError(String),
+    #[error("Address error")]
+    AddressError,
 }
 
 pub type RecommendedWalletProvider = FillProvider<
@@ -98,11 +86,12 @@ impl ContractManager {
     ) -> Result<bool, TaskError> {
         Ok(self
             .wormhole_dss_instance
-            .isOperatorRegistered(operator_address.parse::<Address>().unwrap())
+            .isOperatorRegistered(
+                operator_address.parse::<Address>().map_err(|_| TaskError::AddressError)?,
+            )
             .call()
             .await
-            .map_err(|_| TaskError::OperatorNotFound)
-            .unwrap()
+            .map_err(|_| TaskError::OperatorNotFound)?
             ._0)
     }
 
@@ -119,11 +108,10 @@ impl ContractManager {
     ) -> Result<bool, TaskError> {
         let operator_g1_key = self
             .wormhole_dss_instance
-            .operatorG1(operator_address.parse::<Address>().unwrap())
+            .operatorG1(operator_address.parse::<Address>().map_err(|_| TaskError::AddressError)?)
             .call()
             .await
-            .map_err(|_| TaskError::ContractCallError)
-            .unwrap()
+            .map_err(|_| TaskError::ContractCallError)?
             .g1Point;
         Ok((g1_key.0, g1_key.1) == (operator_g1_key.X, operator_g1_key.Y))
     }

@@ -131,8 +131,8 @@ async fn load_keypair_from_config(
                 return Err(eyre::eyre!("KEY_PATH env variable must be set for LOCAL keystore"));
             }
             KeystoreType::Local {
-                keystore_path: bn254_key_path.unwrap(),
-                password: bn254_keystore_password.unwrap(),
+                keystore_path: bn254_key_path.expect("keystore path is NONE"),
+                password: bn254_keystore_password.expect("keystore password is NONE")
             }
         }
         Bn254Kms::Aws => {
@@ -140,18 +140,18 @@ async fn load_keypair_from_config(
                 return Err(eyre::eyre!("AWS_KEY_NAME env variable must be set for AWS keystore"));
             }
             KeystoreType::Aws {
-                access_key_id: aws_access_key_id.unwrap(),
-                secret_access_key: aws_secret_access_key.unwrap(),
-                region: aws_region.unwrap(),
-                key_name: aws_key_name.unwrap(),
-                password: aws_password.unwrap(),
+                access_key_id: aws_access_key_id.expect("aws access key id is NONE"),
+                secret_access_key: aws_secret_access_key.expect("aws secret access key is NONE"),
+                region: aws_region.expect("aws region is NONE"),
+                key_name: aws_key_name.expect("aws key name is NONE"),
+                password: aws_password.expect("aws password is NONE"),
             }
         }
     };
     load_keypair(keystore_type).await
 }
 
-pub fn sign(payload: Bytes, keypair: bn254::Keypair) -> Bytes {
+pub fn sign(payload: Bytes, keypair: bn254::Keypair) -> eyre::Result<Bytes> {
     // We Keccak256 hash the message to a 32 bytes hash
 
     let mut hasher = Keccak256::new();
@@ -161,7 +161,7 @@ pub fn sign(payload: Bytes, keypair: bn254::Keypair) -> Bytes {
     hash_buffer.copy_from_slice(result.as_ref());
 
     let signature = keypair.sign(&hash_buffer);
-    signature.to_bytes().unwrap().into()
+    Ok(signature.to_bytes().unwrap().into())
 }
 
 pub fn sign_hash(payload: Bytes, keypair: bn254::Keypair) -> G1Point {
@@ -217,7 +217,7 @@ pub async fn get_operator_signed_message(
     eth_aws_secret_access_key: Option<String>,
     eth_aws_region: Option<String>,
     eth_aws_key_name: Option<String>,
-) -> (Address, EcdsaSignature) {
+) -> eyre::Result<(Address, EcdsaSignature)> {
     let eth_keystore = load_eth_keystore(
         eth_key_method,
         eth_private_key,
@@ -228,18 +228,18 @@ pub async fn get_operator_signed_message(
         eth_aws_region,
         eth_aws_key_name,
     )
-    .await
-    .unwrap();
+    .await?;
+
     match eth_keystore {
         EthKeystoreType::Env { eth_private_key } => {
-            let signer = PrivateKeySigner::from_str(eth_private_key.as_str()).unwrap();
-            (signer.address(), signer.sign_message(message.as_bytes()).await.unwrap())
+            let signer = PrivateKeySigner::from_str(eth_private_key.as_str())?;
+            Ok((signer.address(), signer.sign_message(message.as_bytes()).await?))
         }
         EthKeystoreType::Local { eth_keystore_path, eth_keystore_password } => {
             let keystore_file_path = PathBuf::from(eth_keystore_path);
             let signer =
-                LocalSigner::decrypt_keystore(keystore_file_path, eth_keystore_password).unwrap();
-            (signer.address(), signer.sign_message(message.as_bytes()).await.unwrap())
+                LocalSigner::decrypt_keystore(keystore_file_path, eth_keystore_password)?;
+            Ok((signer.address(), signer.sign_message(message.as_bytes()).await?))
         }
         EthKeystoreType::Aws {
             eth_access_key_id,
@@ -255,18 +255,18 @@ pub async fn get_operator_signed_message(
                 .load()
                 .await;
             let client = aws_sdk_kms::Client::new(&aws_config);
-            let signer = AwsSigner::new(client, eth_aws_key_name, Some(1)).await.unwrap();
-            (signer.address(), signer.sign_message(message.as_bytes()).await.unwrap())
+            let signer = AwsSigner::new(client, eth_aws_key_name, Some(1)).await?;
+            Ok((signer.address(), signer.sign_message(message.as_bytes()).await?))
         }
     }
 }
 
-pub fn g1_point_from_bytes_string(s: String) -> G1Point {
-    G1Point::from_bytes(Bytes::from_str(s.as_str()).unwrap()).unwrap()
+pub fn g1_point_from_bytes_string(s: String) -> eyre::Result<G1Point> {
+    Ok(G1Point::from_bytes(Bytes::from_str(s.as_str())?)?)
 }
 
-pub fn g2_point_from_bytes_string(s: String) -> G2Point {
-    G2Point::from_bytes(Bytes::from_str(s.as_str()).unwrap()).unwrap()
+pub fn g2_point_from_bytes_string(s: String) -> eyre::Result<G2Point> {
+    Ok(G2Point::from_bytes(Bytes::from_str(s.as_str())?)?)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -352,16 +352,16 @@ async fn load_eth_keystore(
     eth_aws_key_name: Option<String>,
 ) -> Result<EthKeystoreType> {
     let keystore_type = match eth_key_method {
-        EthKms::Env => EthKeystoreType::Env { eth_private_key: eth_private_key.unwrap() },
+        EthKms::Env => EthKeystoreType::Env { eth_private_key: eth_private_key.expect("eth private key is NONE") },
         EthKms::Local => EthKeystoreType::Local {
-            eth_keystore_path: eth_keystore_path.unwrap(),
-            eth_keystore_password: eth_keystore_password.unwrap(),
+            eth_keystore_path: eth_keystore_path.expect("keystore path is NONE"),
+            eth_keystore_password: eth_keystore_password.expect("keystore password is NONE"),
         },
         EthKms::Aws => EthKeystoreType::Aws {
-            eth_access_key_id: eth_aws_key_id.unwrap(),
-            eth_aws_secret_access_key: eth_aws_secret_access_key.unwrap(),
-            eth_aws_region: eth_aws_region.unwrap(),
-            eth_aws_key_name: eth_aws_key_name.unwrap(),
+            eth_access_key_id: eth_aws_key_id.expect("aws access key id is NONE"),
+            eth_aws_secret_access_key: eth_aws_secret_access_key.expect("aws secret access key is NONE"),
+            eth_aws_region: eth_aws_region.expect("aws region is NONE"),
+            eth_aws_key_name: eth_aws_key_name.expect("aws key name is NONE"),
         },
     };
     Ok(keystore_type)

@@ -51,10 +51,12 @@ pub async fn query_payloads(
         let mut stmt = db
             .prepare("SELECT dst_chain_id, unsigned_payload FROM payloads WHERE message_event = ? LIMIT 1")
             .expect("Failed to prepare statement");
-        let dst_chain_id =
-            stmt.query_row(params![payload.unsigned_payload], |row| row.get(0)).unwrap_or(0);
-        let unsigned_operator_payload =
-            stmt.query_row(params![payload.unsigned_payload], |row| row.get(1)).unwrap();
+        let dst_chain_id = stmt
+            .query_row(params![payload.unsigned_payload], |row| row.get(0))
+            .expect("Failed to get dst chain id");
+        let unsigned_operator_payload = stmt
+            .query_row(params![payload.unsigned_payload], |row| row.get(1))
+            .expect("Failed to get unsigned operator payload");
         (dst_chain_id, unsigned_operator_payload)
     };
 
@@ -65,10 +67,16 @@ pub async fn query_payloads(
 
         stmt.query_map(params![payload.unsigned_payload], |row| {
             Ok(OperatorData {
-                bls_public_key_g1: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(0)?)),
-                bls_public_key_g2: <G2PointAffine>::from(g2_point_from_bytes_string(row.get(1)?)),
+                bls_public_key_g1: <G1PointAffine>::from(
+                    g1_point_from_bytes_string(row.get(0)?).expect("Invalid G1 point"),
+                ),
+                bls_public_key_g2: <G2PointAffine>::from(
+                    g2_point_from_bytes_string(row.get(1)?).expect("Invalid G2 point"),
+                ),
                 operator_address: row.get(2)?,
-                signature: <G1PointAffine>::from(g1_point_from_bytes_string(row.get(3)?)),
+                signature: <G1PointAffine>::from(
+                    g1_point_from_bytes_string(row.get(3)?).expect("Invalid G1 point"),
+                ),
             })
         })
         .expect("Failed to execute query")
@@ -78,8 +86,15 @@ pub async fn query_payloads(
 
     drop(db); // Release the database lock before the next await
 
-    let dst_chain_config =
-        state.config.lock().await.chain_config.chains.get(&dst_chain_id).unwrap().clone();
+    let dst_chain_config = state
+        .config
+        .lock()
+        .await
+        .chain_config
+        .chains
+        .get(&dst_chain_id)
+        .unwrap_or_else(|| panic!("Chain config for id: {dst_chain_id} not found"))
+        .clone();
 
     let all_operator_public_keys = dst_chain_config
         .wormhole_dss_manager
@@ -87,12 +102,14 @@ pub async fn query_payloads(
         .getRegisteredOperators()
         .call()
         .await
-        .unwrap()
+        .expect("Failed to get registered operators")
         ._0;
 
     let signing_operators = signing_operator_data
         .iter()
-        .map(|payload| payload.operator_address.parse::<Address>().unwrap())
+        .map(|payload| {
+            payload.operator_address.parse::<Address>().expect("Invalid operator address")
+        })
         .collect::<Vec<Address>>();
 
     let non_signing_operators = all_operator_public_keys

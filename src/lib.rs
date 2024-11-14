@@ -7,7 +7,6 @@ use serde::Deserialize;
 
 pub mod constants;
 pub mod contracts;
-pub mod error;
 pub mod events;
 pub mod keypair;
 pub mod p2p;

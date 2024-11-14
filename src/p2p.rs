@@ -31,11 +31,11 @@ where
 
     tracing::info!("peer id: {}", karak_p2p.peer_id());
 
-    tokio::spawn(async move { karak_p2p.start_listening(on_incoming_message).await.unwrap() });
+    karak_p2p.start_listening(on_incoming_message).await?;
     Ok(())
 }
 
-pub fn parse_bootstrap_nodes(input: String) -> eyre::Result<Vec<P2PNode>> {
+pub fn parse_bootstrap_nodes(input: &str) -> eyre::Result<Vec<P2PNode>> {
     let input =
         input.trim().trim_start_matches("BOOTSTRAP_NODES=").trim_matches('[').trim_matches(']');
     input
@@ -48,7 +48,7 @@ pub fn parse_bootstrap_nodes(input: String) -> eyre::Result<Vec<P2PNode>> {
                 .next()
                 .and_then(|s| s.split(':').nth(1))
                 .ok_or("Missing peer_id")
-                .unwrap()
+                .map_err(|e| eyre::eyre!("Failed to parse peer id: {}", e))?
                 .trim()
                 .trim_matches('"')
                 .parse::<PeerId>()?;
@@ -57,7 +57,7 @@ pub fn parse_bootstrap_nodes(input: String) -> eyre::Result<Vec<P2PNode>> {
                 .next()
                 .and_then(|s| s.split(':').nth(1))
                 .ok_or("Missing address")
-                .unwrap()
+                .map_err(|e| eyre::eyre!("Failed to parse address: {}", e))?
                 .trim()
                 .trim_matches('"')
                 .parse::<Multiaddr>()?;
