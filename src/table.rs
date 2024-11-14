@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::events::OperatorData;
 
-pub async fn create_tables(connection: &mut Arc<Mutex<Connection>>) -> rusqlite::Result<()> {
+pub async fn create_tables(connection: &Arc<Mutex<Connection>>) -> rusqlite::Result<()> {
     // Create payloads table with updated schema
     connection.lock().await.execute(
         r#"
@@ -31,7 +31,7 @@ pub async fn create_tables(connection: &mut Arc<Mutex<Connection>>) -> rusqlite:
 
 pub async fn insert_payload(
     connection: &Arc<Mutex<Connection>>,
-    operator_data: OperatorData,
+    operator_data: &OperatorData,
     ntt_manager_address: String,
 ) -> rusqlite::Result<()> {
     connection.lock().await.execute(
@@ -52,8 +52,8 @@ pub async fn insert_payload(
         (
             operator_data.bls_public_key_g1.to_string(),
             operator_data.bls_public_key_g2.to_string(),
-            operator_data.operator_address,
-            operator_data.message_event,
+            operator_data.operator_address.to_owned(),
+            operator_data.message_event.to_owned(),
             operator_data.unsigned_payload.to_string(),
             operator_data.signed_payload.to_string(),
             operator_data.src_chain_id,

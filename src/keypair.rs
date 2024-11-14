@@ -151,7 +151,7 @@ async fn load_keypair_from_config(
     load_keypair(keystore_type).await
 }
 
-pub fn sign(payload: Bytes, keypair: bn254::Keypair) -> eyre::Result<Bytes> {
+pub fn sign(payload: &Bytes, keypair: &bn254::Keypair) -> eyre::Result<Bytes> {
     // We Keccak256 hash the message to a 32 bytes hash
 
     let mut hasher = Keccak256::new();
@@ -208,7 +208,7 @@ pub fn verify_bls_keys(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn get_operator_signed_message(
-    message: String,
+    message: &str,
     eth_key_method: EthKms,
     eth_private_key: Option<String>,
     eth_keystore_path: Option<String>,

@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<Mutex<Connection>>,
-    pub config: Arc<Mutex<Config>>,
+    pub config: Arc<Config>,
 }
 
 #[derive(Deserialize)]
@@ -88,13 +88,10 @@ pub async fn query_payloads(
 
     let dst_chain_config = state
         .config
-        .lock()
-        .await
         .chain_config
         .chains
         .get(&dst_chain_id)
-        .unwrap_or_else(|| panic!("Chain config for id: {dst_chain_id} not found"))
-        .clone();
+        .unwrap_or_else(|| panic!("Chain config for id: {dst_chain_id} not found"));
 
     let all_operator_public_keys = dst_chain_config
         .wormhole_dss_manager

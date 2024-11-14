@@ -71,7 +71,7 @@ impl WormholeMessage {
 }
 
 pub async fn run_event_listener(
-    config: Config,
+    config: Arc<Config>,
     connection: &Arc<Mutex<Connection>>,
     message_sender: &mpsc::Sender<GossipMessage<String>>,
     topic: &str,
@@ -88,7 +88,9 @@ pub async fn run_event_listener(
     )
     .await?;
     let dss_context = DssContext { keypair };
-    create_tables(&mut connection.clone()).await?;
+
+    // create tables
+    create_tables(connection).await?;
 
     let mode = match config.env_config.event_subscription_mode {
         EventSubscriptionMode::Latest => BlockNumberOrTag::Latest,
@@ -96,12 +98,8 @@ pub async fn run_event_listener(
         EventSubscriptionMode::Finalized => BlockNumberOrTag::Finalized,
     };
 
-    let mut futures = FuturesUnordered::new();
-
-    let connection = connection.clone();
-    let message_sender = message_sender.clone();
-    let topic = topic.to_string();
     let dss_context = Arc::new(dss_context);
+    let mut futures = FuturesUnordered::new();
 
     for (chain_id, chain_config) in config.chain_config.chains.clone() {
         if chain_config.listen {
@@ -114,11 +112,8 @@ pub async fn run_event_listener(
                 .await
                 .wrap_err(format!("Failed to create message filter for chain {}", chain_id))?;
 
-            let connection = connection.clone();
-            let message_sender = message_sender.clone();
-            let topic = topic.clone();
-            let config = config.clone();
-            let dss_context = dss_context.clone();
+            let dss_context_for_chain_future = dss_context.clone();
+            let config_for_chain_future = config.clone();
 
             let chain_future = async move {
                 let mut event_stream = stream.into_stream();
@@ -126,13 +121,13 @@ pub async fn run_event_listener(
                     match result {
                         Ok((log, _)) => {
                             handle_event_log_message_published(
-                                (*dss_context).clone(),
+                                dss_context_for_chain_future.clone(),
                                 &log,
                                 chain_id,
                                 &connection,
                                 &message_sender,
-                                &topic,
-                                config.clone(),
+                                topic,
+                                config_for_chain_future.clone()
                             )
                             .await?;
                         }
@@ -162,13 +157,13 @@ pub async fn run_event_listener(
 }
 
 pub async fn handle_event_log_message_published(
-    dss_context: DssContext,
+    dss_context: Arc<DssContext>,
     event: &WormholeDSSMessageSent,
     src_chain_id: u16,
     connection: &Arc<Mutex<Connection>>,
     message_sender: &mpsc::Sender<GossipMessage<String>>,
-    topic: &String,
-    config: Config,
+    topic: &str,
+    config: Arc<Config>,
 ) -> eyre::Result<()> {
     tracing::info!("Received event: {} on chain {}", event.message, src_chain_id);
 
@@ -183,13 +178,14 @@ pub async fn handle_event_log_message_published(
     ])
     .into();
 
-    let signed_payload = keypair::sign(abi_encoded_message.clone(), dss_context.keypair.clone())?;
-
     tracing::info!("ABI encoded message payload: {}", abi_encoded_message);
+
+    let signed_payload = keypair::sign(&abi_encoded_message, &dss_context.keypair)?;
+
     tracing::info!("Signed payload: {}", signed_payload);
 
     let (operator_address, operator_signature) = get_operator_signed_message(
-        abi_encoded_message.to_string(),
+        &abi_encoded_message.to_string(),
         config.env_config.eth_keystore_method,
         config.env_config.eth_private_key.clone(),
         config.env_config.eth_keypair_path.clone(),
@@ -201,19 +197,21 @@ pub async fn handle_event_log_message_published(
     )
     .await?;
 
+    let operator_data = OperatorData {
+        src_chain_id,
+        dst_chain_id: event.recipientChain,
+        message_event: event.message.to_string(),
+        signed_payload: signed_payload.clone(),
+        unsigned_payload: abi_encoded_message.clone(),
+        bls_public_key_g1: Bytes::from(dss_context.keypair.public_key().g1.to_bytes()?),
+        bls_public_key_g2: Bytes::from(dss_context.keypair.public_key().g2.to_bytes()?),
+        operator_address: operator_address.to_string(),
+        operator_signature,
+    };
+
     insert_payload(
         connection,
-        OperatorData {
-            src_chain_id,
-            dst_chain_id: event.recipientChain,
-            message_event: event.message.to_string(),
-            signed_payload: signed_payload.clone(),
-            unsigned_payload: abi_encoded_message.clone(),
-            bls_public_key_g1: Bytes::from(dss_context.keypair.public_key().g1.to_bytes()?),
-            bls_public_key_g2: Bytes::from(dss_context.keypair.public_key().g2.to_bytes()?),
-            operator_address: operator_address.to_string(),
-            operator_signature,
-        },
+        &operator_data,
         from_wormhole_format(event.recipientNttManager)?.to_string(),
     )
     .await
@@ -225,13 +223,13 @@ pub async fn handle_event_log_message_published(
         src_chain_id,
         dst_chain_id: event.recipientChain,
         message_event: event.message.to_string(),
-        unsigned_payload: BASE64_STANDARD.encode(abi_encoded_message.clone()),
-        signed_payload: BASE64_STANDARD.encode(signed_payload.clone()),
+        unsigned_payload: BASE64_STANDARD.encode(abi_encoded_message),
+        signed_payload: BASE64_STANDARD.encode(signed_payload),
         bls_public_key_g2: BASE64_STANDARD.encode(dss_context.keypair.public_key().g2.to_bytes()?),
         bls_public_key_g1: BASE64_STANDARD.encode(dss_context.keypair.public_key().g1.to_bytes()?),
-        operator_address: operator_address.clone().to_string(),
+        operator_address: operator_address.to_string(),
         operator_signature: BASE64_STANDARD
-            .encode(Bytes::from(operator_signature.clone().as_bytes())),
+            .encode(Bytes::from(operator_signature.as_bytes())),
         destination_ntt_manager: from_wormhole_format(event.recipientNttManager)?.to_string(),
     };
 
@@ -251,7 +249,7 @@ pub async fn handle_event_log_message_published(
 pub async fn handle_message_received(
     message: Message,
     connection: Arc<Mutex<Connection>>,
-    config: Config,
+    config: Arc<Config>,
 ) -> eyre::Result<()> {
     let message_string = String::from_utf8_lossy(&message.data);
     let wormhole_message =
@@ -260,54 +258,40 @@ pub async fn handle_message_received(
     tracing::info!("Received message: {:?}", wormhole_message);
 
     let unsigned_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload.clone())?);
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload)?);
     let signed_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload.clone())?);
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload)?);
     let bls_public_key_g2 =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g2.clone())?);
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g2)?);
     let bls_public_key_g1 =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g1.clone())?);
-    let operator_address = wormhole_message.operator_address.clone();
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g1)?);
+    let operator_address = wormhole_message.operator_address;
     let operator_signature = Signature::from_str(
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.operator_signature.clone())?)
+        Bytes::from(BASE64_STANDARD.decode(wormhole_message.operator_signature)?)
             .to_string()
             .as_str(),
     )?;
 
-    if !verify_operator_and_registration(
-        OperatorData {
-            src_chain_id: wormhole_message.src_chain_id,
-            dst_chain_id: wormhole_message.dst_chain_id,
-            message_event: wormhole_message.message_event.clone(),
-            signed_payload: signed_payload.clone(),
-            unsigned_payload: unsigned_payload.clone(),
-            bls_public_key_g1: bls_public_key_g1.clone(),
-            bls_public_key_g2: bls_public_key_g2.clone(),
-            operator_address: operator_address.clone(),
-            operator_signature,
-        },
+    let operator_data = OperatorData {
+        src_chain_id: wormhole_message.src_chain_id,
+        dst_chain_id: wormhole_message.dst_chain_id,
+        message_event: wormhole_message.message_event,
+        signed_payload,
+        unsigned_payload,
+        bls_public_key_g1,
+        bls_public_key_g2,
+        operator_address,
         operator_signature,
-        config.clone(),
-    )
-    .await?
-    {
+    };
+
+    if !verify_operator_and_registration(&operator_data, operator_signature, config).await? {
         tracing::error!("Verification of operator and registration failed");
         return Err(eyre::eyre!("Verification of operator and registration failed"));
     }
 
     insert_payload(
         &connection,
-        OperatorData {
-            src_chain_id: wormhole_message.src_chain_id,
-            dst_chain_id: wormhole_message.dst_chain_id,
-            message_event: wormhole_message.message_event.clone(),
-            signed_payload: signed_payload.clone(),
-            unsigned_payload: unsigned_payload.clone(),
-            bls_public_key_g1: bls_public_key_g1.clone(),
-            bls_public_key_g2: bls_public_key_g2.clone(),
-            operator_address: operator_address.clone(),
-            operator_signature,
-        },
+        &operator_data,
         wormhole_message.destination_ntt_manager,
     )
     .await
@@ -319,9 +303,9 @@ pub async fn handle_message_received(
 }
 
 async fn verify_operator_and_registration(
-    operator_data: OperatorData,
+    operator_data: &OperatorData,
     operator_signature: Signature,
-    config: Config,
+    config: Arc<Config>,
 ) -> eyre::Result<bool> {
     let dst_chain_config = config
         .chain_config
@@ -330,25 +314,25 @@ async fn verify_operator_and_registration(
         .unwrap_or_else(|| panic!("Chain id {} not found", operator_data.dst_chain_id));
 
     let is_valid = keypair::verify(
-        operator_data.signed_payload.clone(),
-        operator_data.unsigned_payload.clone(),
-        operator_data.bls_public_key_g2.clone(),
+        operator_data.signed_payload.to_owned(),
+        operator_data.unsigned_payload.to_owned(),
+        operator_data.bls_public_key_g2.to_owned()
     ) && keypair::verify_bls_keys(
-        operator_data.bls_public_key_g1.clone(),
-        operator_data.bls_public_key_g2.clone(),
-        operator_data.signed_payload.clone(),
-        operator_data.unsigned_payload.clone(),
+        operator_data.bls_public_key_g1.to_owned(),
+        operator_data.bls_public_key_g2.to_owned(),
+        operator_data.signed_payload.to_owned(),
+        operator_data.unsigned_payload.to_owned(),
     ) && operator_signature
         .recover_address_from_msg(operator_data.unsigned_payload.to_string().as_bytes())?
         == operator_data.operator_address.clone().parse::<Address>()?
         && dst_chain_config
             .wormhole_dss_manager
-            .is_operator_registered(operator_data.operator_address.clone())
+            .is_operator_registered(operator_data.operator_address.to_owned())
             .await?
         && dst_chain_config
             .wormhole_dss_manager
             .operator_address_matches_g1_key(
-                operator_data.operator_address.clone(),
+                operator_data.operator_address.to_owned(),
                 <G1PointAffine>::from(g1_point_from_bytes_string(
                     operator_data.bls_public_key_g1.to_string(),
                 )?),

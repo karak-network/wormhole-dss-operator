@@ -41,7 +41,7 @@ async fn main() -> eyre::Result<()> {
 
     match cli.command {
         WormholeOperatorCommand::Run { .. } => {
-            let config = load_config(cli).await?;
+            let config = Arc::new(load_config(cli).await?);
             if !is_operator_registered_in_listening_chains(&config).await? {
                 panic!("Operator is not registered in all listening chains, please run register command first");
             }
@@ -84,15 +84,16 @@ async fn main() -> eyre::Result<()> {
             });
 
             // axum server
+
+            let addr = SocketAddr::from(([0, 0, 0, 0], config_server.env_config.server_port));
+            let listener = tokio::net::TcpListener::bind(addr).await?;
             let state = Arc::new(AppState {
                 db: connection_server,
-                config: Arc::new(Mutex::new(config_server)),
+                config: config_server,
             });
             let app: Router =
                 Router::new().route("/query_payloads", post(query_payloads)).with_state(state);
             let server_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
-                let addr = SocketAddr::from(([0, 0, 0, 0], config.env_config.server_port));
-                let listener = tokio::net::TcpListener::bind(addr).await?;
                 axum::serve(listener, app.into_make_service()).await?;
                 tracing::info!("Server is listening on {}", addr);
 
