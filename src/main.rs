@@ -57,7 +57,7 @@ async fn main() -> eyre::Result<()> {
             let config_event_listener = config.clone();
 
             // p2p
-            let (_termination_signal, termination_receiver) = oneshot::channel::<()>();
+            let (termination_signal, termination_receiver) = oneshot::channel::<()>();
             let (message_sender, message_receiver) = mpsc::channel::<GossipMessage<String>>(100);
             let p2p_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
                 let bootstrap_nodes =
@@ -93,9 +93,15 @@ async fn main() -> eyre::Result<()> {
             });
             let app: Router =
                 Router::new().route("/query_payloads", post(query_payloads)).with_state(state);
+            let (server_termination_signal, server_termination_receiver) = oneshot::channel::<()>();
             let server_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
-                axum::serve(listener, app.into_make_service()).await?;
                 tracing::info!("Server is listening on {}", addr);
+                axum::serve(listener, app.into_make_service())
+                    .with_graceful_shutdown(async {
+                        server_termination_receiver.await.expect("Failed to receive termination signal");
+                        tracing::info!("Shutting down server")
+                    })
+                    .await?;
 
                 Ok(())
             });
@@ -112,9 +118,18 @@ async fn main() -> eyre::Result<()> {
                 Ok(())
             });
 
+            let graceful_shutdown_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
+                tokio::signal::ctrl_c().await.expect("Failed to install CTRL+C handler");
+                tracing::info!("Received termination signal");
+                termination_signal.send(()).expect("Failed to send termination signal");
+                server_termination_signal.send(()).expect("Failed to send server termination signal");
+                Ok(())
+            });
+
             let _ = server_handle.await?;
             let _ = p2p_handle.await?;
             let _ = event_listener_handle.await?;
+            let _ = graceful_shutdown_handle.await?;
         }
         WormholeOperatorCommand::Register => {
             register_operator(cli).await?;

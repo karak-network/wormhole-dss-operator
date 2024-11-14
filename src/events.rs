@@ -76,6 +76,8 @@ pub async fn run_event_listener(
     message_sender: &mpsc::Sender<GossipMessage<String>>,
     topic: &str,
 ) -> eyre::Result<()> {
+    tracing::info!("Starting event listener");
+
     let keypair = keypair::prompt_load_keypair(
         config.env_config.bn254_keystore_method,
         config.env_config.bn254_key_path.clone(),
@@ -103,6 +105,7 @@ pub async fn run_event_listener(
 
     for (chain_id, chain_config) in config.chain_config.chains.clone() {
         if chain_config.listen {
+            tracing::info!("Listening to chain {}", chain_id);
             let stream = chain_config
                 .wormhole_dss_manager
                 .wormhole_dss_instance

@@ -4,3 +4,4 @@ target/
 .env
 *.keypair
 node_modules/
+config.json
