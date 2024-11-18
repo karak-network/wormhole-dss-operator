@@ -132,7 +132,7 @@ async fn load_keypair_from_config(
             }
             KeystoreType::Local {
                 keystore_path: bn254_key_path.expect("keystore path is NONE"),
-                password: bn254_keystore_password.expect("keystore password is NONE")
+                password: bn254_keystore_password.expect("keystore password is NONE"),
             }
         }
         Bn254Kms::Aws => {
@@ -237,8 +237,7 @@ pub async fn get_operator_signed_message(
         }
         EthKeystoreType::Local { eth_keystore_path, eth_keystore_password } => {
             let keystore_file_path = PathBuf::from(eth_keystore_path);
-            let signer =
-                LocalSigner::decrypt_keystore(keystore_file_path, eth_keystore_password)?;
+            let signer = LocalSigner::decrypt_keystore(keystore_file_path, eth_keystore_password)?;
             Ok((signer.address(), signer.sign_message(message.as_bytes()).await?))
         }
         EthKeystoreType::Aws {
@@ -352,14 +351,17 @@ async fn load_eth_keystore(
     eth_aws_key_name: Option<String>,
 ) -> Result<EthKeystoreType> {
     let keystore_type = match eth_key_method {
-        EthKms::Env => EthKeystoreType::Env { eth_private_key: eth_private_key.expect("eth private key is NONE") },
+        EthKms::Env => EthKeystoreType::Env {
+            eth_private_key: eth_private_key.expect("eth private key is NONE"),
+        },
         EthKms::Local => EthKeystoreType::Local {
             eth_keystore_path: eth_keystore_path.expect("keystore path is NONE"),
             eth_keystore_password: eth_keystore_password.expect("keystore password is NONE"),
         },
         EthKms::Aws => EthKeystoreType::Aws {
             eth_access_key_id: eth_aws_key_id.expect("aws access key id is NONE"),
-            eth_aws_secret_access_key: eth_aws_secret_access_key.expect("aws secret access key is NONE"),
+            eth_aws_secret_access_key: eth_aws_secret_access_key
+                .expect("aws secret access key is NONE"),
             eth_aws_region: eth_aws_region.expect("aws region is NONE"),
             eth_aws_key_name: eth_aws_key_name.expect("aws key name is NONE"),
         },

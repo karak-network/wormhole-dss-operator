@@ -7,6 +7,7 @@ use crate::{
 use alloy::primitives::Address;
 use axum::{extract::State, Json};
 use karak_rs::kms::keypair::bn254::algebra::{g1::G1Point, g2::G2Point};
+use metrics::counter;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -46,6 +47,8 @@ pub async fn query_payloads(
     Json(payload): Json<PayloadRequest>,
 ) -> Json<PayloadResponse> {
     let db = state.db.lock().await;
+
+    counter!("api_requests").increment(1);
 
     let (dst_chain_id, unsigned_operator_payload) = {
         let mut stmt = db

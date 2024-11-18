@@ -46,6 +46,7 @@ pub struct EnvConfig {
     pub eth_keystore_password: Option<String>,
     pub db_path: String,
     pub server_port: u16,
+    pub prometheus_listen_address: Option<String>,
 }
 
 #[derive(Clone)]
@@ -169,6 +170,7 @@ pub async fn load_config(cli: WormholeOperator) -> Result<Config> {
             event_subscription_mode,
             db_path,
             server_port,
+            prometheus_listen_address,
         } => EnvConfig {
             p2p_listen_address,
             bootstrap_nodes,
@@ -192,6 +194,7 @@ pub async fn load_config(cli: WormholeOperator) -> Result<Config> {
             eth_keypair_path: cli.eth_keystore_path,
             eth_private_key: cli.eth_private_key,
             eth_keystore_password: None,
+            prometheus_listen_address,
         },
         _ => panic!("Code path is only for Run"),
     };

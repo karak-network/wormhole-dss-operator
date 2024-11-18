@@ -13,6 +13,7 @@ use karak_rs::{
     p2p::GossipMessage,
 };
 use libp2p::gossipsub::Message;
+use metrics::counter;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
@@ -123,16 +124,18 @@ pub async fn run_event_listener(
                 while let Some(result) = event_stream.next().await {
                     match result {
                         Ok((log, _)) => {
+                            counter!("event_logs_read").increment(1);
                             handle_event_log_message_published(
                                 dss_context_for_chain_future.clone(),
                                 &log,
                                 chain_id,
-                                &connection,
-                                &message_sender,
+                                connection,
+                                message_sender,
                                 topic,
-                                config_for_chain_future.clone()
+                                config_for_chain_future.clone(),
                             )
                             .await?;
+                            counter!("payloads_processed").increment(1);
                         }
                         Err(e) => {
                             tracing::error!(
@@ -231,8 +234,7 @@ pub async fn handle_event_log_message_published(
         bls_public_key_g2: BASE64_STANDARD.encode(dss_context.keypair.public_key().g2.to_bytes()?),
         bls_public_key_g1: BASE64_STANDARD.encode(dss_context.keypair.public_key().g1.to_bytes()?),
         operator_address: operator_address.to_string(),
-        operator_signature: BASE64_STANDARD
-            .encode(Bytes::from(operator_signature.as_bytes())),
+        operator_signature: BASE64_STANDARD.encode(Bytes::from(operator_signature.as_bytes())),
         destination_ntt_manager: from_wormhole_format(event.recipientNttManager)?.to_string(),
     };
 
@@ -244,7 +246,9 @@ pub async fn handle_event_log_message_published(
         .await
         .unwrap_or_else(|e| {
             tracing::error!("Failed to send message: {}", e);
+            counter!("failed_to_send_messages").increment(1);
         });
+    counter!("messages_sent_to_p2p").increment(1);
 
     Ok(())
 }
@@ -259,11 +263,10 @@ pub async fn handle_message_received(
         WormholeMessage::from_base64(&message_string).expect("Failed to decode message");
 
     tracing::info!("Received message: {:?}", wormhole_message);
+    counter!("messages_received_from_p2p").increment(1);
 
-    let unsigned_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload)?);
-    let signed_payload =
-        Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload)?);
+    let unsigned_payload = Bytes::from(BASE64_STANDARD.decode(wormhole_message.unsigned_payload)?);
+    let signed_payload = Bytes::from(BASE64_STANDARD.decode(wormhole_message.signed_payload)?);
     let bls_public_key_g2 =
         Bytes::from(BASE64_STANDARD.decode(wormhole_message.bls_public_key_g2)?);
     let bls_public_key_g1 =
@@ -292,15 +295,11 @@ pub async fn handle_message_received(
         return Err(eyre::eyre!("Verification of operator and registration failed"));
     }
 
-    insert_payload(
-        &connection,
-        &operator_data,
-        wormhole_message.destination_ntt_manager,
-    )
-    .await
-    .unwrap_or_else(|e| {
-        tracing::error!("Failed to insert payload: {}", e);
-    });
+    insert_payload(&connection, &operator_data, wormhole_message.destination_ntt_manager)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to insert payload: {}", e);
+        });
 
     Ok(())
 }
@@ -319,7 +318,7 @@ async fn verify_operator_and_registration(
     let is_valid = keypair::verify(
         operator_data.signed_payload.to_owned(),
         operator_data.unsigned_payload.to_owned(),
-        operator_data.bls_public_key_g2.to_owned()
+        operator_data.bls_public_key_g2.to_owned(),
     ) && keypair::verify_bls_keys(
         operator_data.bls_public_key_g1.to_owned(),
         operator_data.bls_public_key_g2.to_owned(),

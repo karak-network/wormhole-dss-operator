@@ -65,6 +65,9 @@ pub enum WormholeOperatorCommand {
 
         #[arg(short, long, env)]
         server_port: u16,
+
+        #[arg(long, env)]
+        prometheus_listen_address: Option<String>,
     },
 
     Register,
