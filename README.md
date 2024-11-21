@@ -64,7 +64,7 @@ If you decide to have local keystores for your bn254 keypair and eth keypair, yo
 
 ```bash
 karak keypair generate --keystore local --curve bn254
-karak keypair generate --keystore local --curve eth
+karak keypair generate --keystore local --curve secp256k1
 ```
 
 ### Create a vault
