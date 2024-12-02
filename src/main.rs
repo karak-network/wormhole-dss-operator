@@ -1,3 +1,4 @@
+use alloy::primitives::Bytes;
 use axum::{routing::post, Router};
 use clap::Parser;
 use dotenvy::dotenv;
@@ -81,6 +82,12 @@ async fn main() -> eyre::Result<()> {
             // p2p
             let (termination_signal, termination_receiver) = oneshot::channel::<()>();
             let (message_sender, message_receiver) = mpsc::channel::<GossipMessage<String>>(100);
+            let p2p_keypair = match config.env_config.p2p_private_key.to_owned() {
+                Some(key) => {
+                    Some(libp2p::identity::Keypair::from_protobuf_encoding(&Bytes::from(key))?)
+                }
+                None => None,
+            };
             let p2p_handle: JoinHandle<eyre::Result<()>> = tokio::spawn(async move {
                 let bootstrap_nodes = parse_bootstrap_nodes(&config.env_config.bootstrap_nodes)?;
                 p2p_init(
@@ -99,6 +106,7 @@ async fn main() -> eyre::Result<()> {
                                 .unwrap_or_else(|e| panic!("Handle message received failed {}", e));
                         }
                     },
+                    p2p_keypair,
                 )
                 .await?;
                 Ok(())

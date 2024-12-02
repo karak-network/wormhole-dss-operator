@@ -68,6 +68,9 @@ pub enum WormholeOperatorCommand {
 
         #[arg(long, env)]
         prometheus_listen_address: Option<String>,
+
+        #[arg(long, env)]
+        p2p_private_key: Option<String>,
     },
 
     Register,
@@ -101,23 +104,23 @@ pub struct WormholeOperator {
     pub bn254_aws_password: Option<String>,
 
     #[arg(long, env, default_value = "local", global = true)]
-    pub eth_kms: EthKms,
+    pub secp256k1_kms: EthKms,
 
     #[arg(long, env, required_if_eq("eth_kms", "env"), global = true)]
-    pub eth_private_key: Option<String>,
+    pub secp256k1_private_key: Option<String>,
 
     #[arg(long, env, required_if_eq("eth_kms", "local"), global = true)]
-    pub eth_keystore_path: Option<String>,
+    pub secp256k1_keystore_path: Option<String>,
 
     #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
-    pub eth_aws_access_key_id: Option<String>,
+    pub secp256k1_aws_access_key_id: Option<String>,
 
     #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
-    pub eth_aws_secret_access_key: Option<String>,
+    pub secp256k1_aws_secret_access_key: Option<String>,
 
     #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
-    pub eth_aws_region: Option<String>,
+    pub secp256k1_aws_region: Option<String>,
 
     #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
-    pub eth_aws_key_name: Option<String>,
+    pub secp256k1_aws_key_name: Option<String>,
 }

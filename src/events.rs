@@ -192,14 +192,14 @@ pub async fn handle_event_log_message_published(
 
     let (operator_address, operator_signature) = get_operator_signed_message(
         &abi_encoded_message.to_string(),
-        config.env_config.eth_keystore_method,
-        config.env_config.eth_private_key.clone(),
-        config.env_config.eth_keypair_path.clone(),
-        config.env_config.eth_keystore_password.clone(),
-        config.env_config.eth_aws_access_key_id.clone(),
-        config.env_config.eth_aws_secret_access_key.clone(),
-        config.env_config.eth_aws_region.clone(),
-        config.env_config.eth_aws_key_name.clone(),
+        config.env_config.secp256k1_kms,
+        config.env_config.secp256k1_private_key.clone(),
+        config.env_config.secp256k1_keystore_path.clone(),
+        config.env_config.secp256k1_keystore_password.clone(),
+        config.env_config.secp256k1_aws_access_key_id.clone(),
+        config.env_config.secp256k1_aws_secret_access_key.clone(),
+        config.env_config.secp256k1_aws_region.clone(),
+        config.env_config.secp256k1_aws_key_name.clone(),
     )
     .await?;
 

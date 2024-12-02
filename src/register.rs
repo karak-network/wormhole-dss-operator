@@ -27,14 +27,14 @@ pub struct EnvConfig {
     pub bn254_aws_default_region: Option<String>,
     pub bn254_aws_key_name: Option<String>,
     pub bn254_aws_password: Option<String>,
-    pub eth_kms: EthKms,
-    pub eth_keystore_password: Option<String>,
-    pub eth_private_key: Option<String>,
-    pub eth_keystore_path: Option<String>,
-    pub eth_aws_access_key_id: Option<String>,
-    pub eth_aws_secret_access_key: Option<String>,
-    pub eth_aws_region: Option<String>,
-    pub eth_aws_key_name: Option<String>,
+    pub secp256k1_kms: EthKms,
+    pub secp256k1_keystore_password: Option<String>,
+    pub secp256k1_private_key: Option<String>,
+    pub secp256k1_keystore_path: Option<String>,
+    pub secp256k1_aws_access_key_id: Option<String>,
+    pub secp256k1_aws_secret_access_key: Option<String>,
+    pub secp256k1_aws_region: Option<String>,
+    pub secp256k1_aws_key_name: Option<String>,
 }
 
 async fn parse_chain_config(
@@ -42,14 +42,14 @@ async fn parse_chain_config(
     env_config: &EnvConfig,
 ) -> Result<ChainConfig> {
     let ws_provider = get_wallet_provider(
-        env_config.eth_kms,
-        env_config.eth_private_key.clone(),
-        env_config.eth_keystore_path.clone(),
-        env_config.eth_keystore_password.clone(),
-        env_config.eth_aws_access_key_id.clone(),
-        env_config.eth_aws_secret_access_key.clone(),
-        env_config.eth_aws_region.clone(),
-        env_config.eth_aws_key_name.clone(),
+        env_config.secp256k1_kms,
+        env_config.secp256k1_private_key.clone(),
+        env_config.secp256k1_keystore_path.clone(),
+        env_config.secp256k1_keystore_password.clone(),
+        env_config.secp256k1_aws_access_key_id.clone(),
+        env_config.secp256k1_aws_secret_access_key.clone(),
+        env_config.secp256k1_aws_region.clone(),
+        env_config.secp256k1_aws_key_name.clone(),
         chain_config_data.ws_rpc_url.clone(),
     )
     .await?;
@@ -84,14 +84,14 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
         bn254_aws_default_region: cli.bn254_aws_default_region,
         bn254_aws_key_name: cli.bn254_aws_key_name,
         bn254_aws_password: None,
-        eth_kms: cli.eth_kms,
-        eth_keystore_password: None,
-        eth_private_key: cli.eth_private_key,
-        eth_keystore_path: cli.eth_keystore_path,
-        eth_aws_access_key_id: cli.eth_aws_access_key_id,
-        eth_aws_secret_access_key: cli.eth_aws_secret_access_key,
-        eth_aws_region: cli.eth_aws_region,
-        eth_aws_key_name: cli.eth_aws_key_name,
+        secp256k1_kms: cli.secp256k1_kms,
+        secp256k1_keystore_password: None,
+        secp256k1_private_key: cli.secp256k1_private_key,
+        secp256k1_keystore_path: cli.secp256k1_keystore_path,
+        secp256k1_aws_access_key_id: cli.secp256k1_aws_access_key_id,
+        secp256k1_aws_secret_access_key: cli.secp256k1_aws_secret_access_key,
+        secp256k1_aws_region: cli.secp256k1_aws_region,
+        secp256k1_aws_key_name: cli.secp256k1_aws_key_name,
     };
 
     let json_chain_config: JsonChainConfig =
@@ -105,9 +105,9 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
         config.bn254_aws_password =
             Some(rpassword::prompt_password("Please enter password for aws keystore: ")?);
     }
-    if EthKms::Local == config.eth_kms {
-        config.eth_keystore_password =
-            Some(rpassword::prompt_password("Please enter password for eth keystore: ")?);
+    if EthKms::Local == config.secp256k1_kms {
+        config.secp256k1_keystore_password =
+            Some(rpassword::prompt_password("Please enter password for secp256k1 keystore: ")?);
     }
 
     let keypair = prompt_load_keypair(

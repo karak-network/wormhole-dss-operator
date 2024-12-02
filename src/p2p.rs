@@ -14,6 +14,7 @@ pub async fn p2p_init<M, F, Fut>(
     message_receiver: mpsc::Receiver<GossipMessage<M>>,
     idle_timeout_duration: u64,
     on_incoming_message: F,
+    p2p_keypair: Option<libp2p::identity::Keypair>,
 ) -> eyre::Result<()>
 where
     M: AsRef<[u8]> + Send + 'static,
@@ -27,6 +28,7 @@ where
         termination_receiver,
         message_receiver,
         idle_timeout_duration,
+        p2p_keypair,
     )?;
 
     tracing::info!("peer id: {}", karak_p2p.peer_id());
