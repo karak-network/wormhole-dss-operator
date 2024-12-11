@@ -53,7 +53,7 @@ karak-rs = "0.2.2"
 ethers-core = "2.0.14"
 metrics = "0.24.0"
 metrics-exporter-prometheus = "0.16.0"
-rustls = { version = "0.23.16", features = ["ring"] }
+rustls = { version = "0.23.18", features = ["ring"] }
 
 [[bin]]
 name = "wormhole-operator"
