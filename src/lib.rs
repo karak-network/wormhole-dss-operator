@@ -24,7 +24,7 @@ pub enum Bn254Kms {
 
 #[derive(Deserialize, Clone, Copy, Debug, ValueEnum, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub enum EthKms {
+pub enum Secp256k1Kms {
     Env,
     Local,
     Aws,
@@ -88,6 +88,9 @@ pub struct WormholeOperator {
     #[arg(long, env, required_if_eq("bn254_kms", "local"), global = true)]
     pub bn254_keystore_path: Option<String>,
 
+    #[arg(long, env, global = true)]
+    pub bn254_keystore_password: Option<String>,
+
     #[arg(long, env, required_if_eq("bn254_kms", "aws"), global = true)]
     pub bn254_aws_access_key_id: Option<String>,
 
@@ -100,27 +103,30 @@ pub struct WormholeOperator {
     #[arg(long, env, required_if_eq("bn254_kms", "aws"), global = true)]
     pub bn254_aws_key_name: Option<String>,
 
-    #[arg(long, env, required_if_eq("bn254_kms", "aws"), global = true)]
+    #[arg(long, env, global = true)]
     pub bn254_aws_password: Option<String>,
 
     #[arg(long, env, default_value = "local", global = true)]
-    pub secp256k1_kms: EthKms,
+    pub secp256k1_kms: Secp256k1Kms,
 
-    #[arg(long, env, required_if_eq("eth_kms", "env"), global = true)]
+    #[arg(long, env, required_if_eq("secp256k1_kms", "env"), global = true)]
     pub secp256k1_private_key: Option<String>,
 
-    #[arg(long, env, required_if_eq("eth_kms", "local"), global = true)]
+    #[arg(long, env, required_if_eq("secp256k1_kms", "local"), global = true)]
     pub secp256k1_keystore_path: Option<String>,
 
-    #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
+    #[arg(long, env, global = true)]
+    pub secp256k1_keystore_password: Option<String>,
+
+    #[arg(long, env, required_if_eq("secp256k1_kms", "aws"), global = true)]
     pub secp256k1_aws_access_key_id: Option<String>,
 
-    #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
+    #[arg(long, env, required_if_eq("secp256k1_kms", "aws"), global = true)]
     pub secp256k1_aws_secret_access_key: Option<String>,
 
-    #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
+    #[arg(long, env, required_if_eq("secp256k1_kms", "aws"), global = true)]
     pub secp256k1_aws_region: Option<String>,
 
-    #[arg(long, env, required_if_eq("eth_kms", "aws"), global = true)]
+    #[arg(long, env, required_if_eq("secp256k1_kms", "aws"), global = true)]
     pub secp256k1_aws_key_name: Option<String>,
 }

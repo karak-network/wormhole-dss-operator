@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     contracts::{ContractManager, RecommendedWalletProvider},
     keypair::get_wallet_provider,
-    Bn254Kms, EthKms, EventSubscriptionMode, WormholeOperator, WormholeOperatorCommand,
+    Bn254Kms, EventSubscriptionMode, Secp256k1Kms, WormholeOperator, WormholeOperatorCommand,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -36,7 +36,7 @@ pub struct EnvConfig {
     pub bn254_aws_default_region: Option<String>,
     pub bn254_aws_key_name: Option<String>,
     pub bn254_aws_password: Option<String>,
-    pub secp256k1_kms: EthKms,
+    pub secp256k1_kms: Secp256k1Kms,
     pub secp256k1_aws_access_key_id: Option<String>,
     pub secp256k1_aws_secret_access_key: Option<String>,
     pub secp256k1_aws_region: Option<String>,
@@ -142,15 +142,20 @@ async fn get_chain_data(
 ) -> Result<ChainData> {
     let mut chain_hashmap: HashMap<u16, ChainConfig> = HashMap::new();
 
-    if Bn254Kms::Local == env_config.bn254_keystore_method {
+    if Bn254Kms::Local == env_config.bn254_keystore_method
+        && env_config.bn254_keystore_password.is_none()
+    {
         env_config.bn254_keystore_password =
             Some(rpassword::prompt_password("Please enter password for bn254 keystore: ")?);
     }
-    if Bn254Kms::Aws == env_config.bn254_keystore_method {
+    if Bn254Kms::Aws == env_config.bn254_keystore_method && env_config.bn254_aws_password.is_none()
+    {
         env_config.bn254_aws_password =
             Some(rpassword::prompt_password("Please enter password for aws keystore: ")?);
     }
-    if EthKms::Local == env_config.secp256k1_kms {
+    if Secp256k1Kms::Local == env_config.secp256k1_kms
+        && env_config.secp256k1_keystore_password.is_none()
+    {
         env_config.secp256k1_keystore_password =
             Some(rpassword::prompt_password("Please enter password for secp256k1 keystore: ")?);
     }
@@ -182,7 +187,7 @@ pub async fn load_config(cli: WormholeOperator) -> Result<Config> {
             server_port,
             bn254_keystore_method: cli.bn254_kms,
             bn254_key_path: cli.bn254_keystore_path,
-            bn254_keystore_password: None,
+            bn254_keystore_password: cli.bn254_keystore_password,
             bn254_aws_access_key_id: cli.bn254_aws_access_key_id,
             bn254_aws_secret_access_key: cli.bn254_aws_secret_access_key,
             bn254_aws_default_region: cli.bn254_aws_default_region,
@@ -195,7 +200,7 @@ pub async fn load_config(cli: WormholeOperator) -> Result<Config> {
             secp256k1_aws_region: cli.secp256k1_aws_region,
             secp256k1_aws_key_name: cli.secp256k1_aws_key_name,
             secp256k1_private_key: cli.secp256k1_private_key,
-            secp256k1_keystore_password: None,
+            secp256k1_keystore_password: cli.secp256k1_keystore_password,
             prometheus_listen_address,
             p2p_private_key,
         },

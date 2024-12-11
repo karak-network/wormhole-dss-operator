@@ -30,7 +30,7 @@ use karak_rs::kms::{
 };
 use std::{path::PathBuf, str::FromStr};
 
-use crate::{contracts::RecommendedWalletProvider, Bn254Kms, EthKms};
+use crate::{contracts::RecommendedWalletProvider, Bn254Kms, Secp256k1Kms};
 
 pub type G1PointAffine = (U256, U256);
 pub type G2PointAffine = ([U256; 2], [U256; 2]);
@@ -209,7 +209,7 @@ pub fn verify_bls_keys(
 #[allow(clippy::too_many_arguments)]
 pub async fn get_operator_signed_message(
     message: &str,
-    eth_key_method: EthKms,
+    eth_key_method: Secp256k1Kms,
     eth_private_key: Option<String>,
     eth_keystore_path: Option<String>,
     eth_keystore_password: Option<String>,
@@ -270,7 +270,7 @@ pub fn g2_point_from_bytes_string(s: String) -> eyre::Result<G2Point> {
 
 #[allow(clippy::too_many_arguments)]
 pub async fn get_wallet_provider(
-    eth_key_method: EthKms,
+    eth_key_method: Secp256k1Kms,
     eth_private_key: Option<String>,
     eth_keystore_path: Option<String>,
     eth_keystore_password: Option<String>,
@@ -341,7 +341,7 @@ pub async fn get_wallet_provider(
 
 #[allow(clippy::too_many_arguments)]
 async fn load_eth_keystore(
-    eth_key_method: EthKms,
+    eth_key_method: Secp256k1Kms,
     eth_private_key: Option<String>,
     eth_keystore_path: Option<String>,
     eth_keystore_password: Option<String>,
@@ -351,14 +351,14 @@ async fn load_eth_keystore(
     eth_aws_key_name: Option<String>,
 ) -> Result<EthKeystoreType> {
     let keystore_type = match eth_key_method {
-        EthKms::Env => EthKeystoreType::Env {
+        Secp256k1Kms::Env => EthKeystoreType::Env {
             eth_private_key: eth_private_key.expect("eth private key is NONE"),
         },
-        EthKms::Local => EthKeystoreType::Local {
+        Secp256k1Kms::Local => EthKeystoreType::Local {
             eth_keystore_path: eth_keystore_path.expect("keystore path is NONE"),
             eth_keystore_password: eth_keystore_password.expect("keystore password is NONE"),
         },
-        EthKms::Aws => EthKeystoreType::Aws {
+        Secp256k1Kms::Aws => EthKeystoreType::Aws {
             eth_access_key_id: eth_aws_key_id.expect("aws access key id is NONE"),
             eth_aws_secret_access_key: eth_aws_secret_access_key
                 .expect("aws secret access key is NONE"),

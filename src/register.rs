@@ -2,7 +2,7 @@ use crate::{
     contracts::ContractManager,
     keypair::{get_wallet_provider, prompt_load_keypair, sign_hash},
     utils::{ChainConfig, ChainConfigData, JsonChainConfig},
-    Bn254Kms, EthKms, WormholeOperator,
+    Bn254Kms, Secp256k1Kms, WormholeOperator,
 };
 use alloy::{
     primitives::{Address, Bytes},
@@ -27,7 +27,7 @@ pub struct EnvConfig {
     pub bn254_aws_default_region: Option<String>,
     pub bn254_aws_key_name: Option<String>,
     pub bn254_aws_password: Option<String>,
-    pub secp256k1_kms: EthKms,
+    pub secp256k1_kms: Secp256k1Kms,
     pub secp256k1_keystore_password: Option<String>,
     pub secp256k1_private_key: Option<String>,
     pub secp256k1_keystore_path: Option<String>,
@@ -78,14 +78,14 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
     let mut config = EnvConfig {
         bn254_keystore_method: cli.bn254_kms,
         bn254_key_path: cli.bn254_keystore_path,
-        bn254_keystore_password: None,
+        bn254_keystore_password: cli.bn254_keystore_password,
         bn254_aws_access_key_id: cli.bn254_aws_access_key_id,
         bn254_aws_secret_access_key: cli.bn254_aws_secret_access_key,
         bn254_aws_default_region: cli.bn254_aws_default_region,
         bn254_aws_key_name: cli.bn254_aws_key_name,
-        bn254_aws_password: None,
+        bn254_aws_password: cli.bn254_aws_password,
         secp256k1_kms: cli.secp256k1_kms,
-        secp256k1_keystore_password: None,
+        secp256k1_keystore_password: cli.secp256k1_keystore_password,
         secp256k1_private_key: cli.secp256k1_private_key,
         secp256k1_keystore_path: cli.secp256k1_keystore_path,
         secp256k1_aws_access_key_id: cli.secp256k1_aws_access_key_id,
@@ -97,15 +97,15 @@ pub async fn register_operator(cli: WormholeOperator) -> Result<()> {
     let json_chain_config: JsonChainConfig =
         serde_json::from_str(&std::fs::read_to_string("config.json")?)?;
 
-    if Bn254Kms::Local == config.bn254_keystore_method {
+    if Bn254Kms::Local == config.bn254_keystore_method && config.bn254_keystore_password.is_none() {
         config.bn254_keystore_password =
             Some(rpassword::prompt_password("Please enter password for bn254 keystore: ")?);
     }
-    if Bn254Kms::Aws == config.bn254_keystore_method {
+    if Bn254Kms::Aws == config.bn254_keystore_method && config.bn254_aws_password.is_none() {
         config.bn254_aws_password =
             Some(rpassword::prompt_password("Please enter password for aws keystore: ")?);
     }
-    if EthKms::Local == config.secp256k1_kms {
+    if Secp256k1Kms::Local == config.secp256k1_kms && config.secp256k1_keystore_password.is_none() {
         config.secp256k1_keystore_password =
             Some(rpassword::prompt_password("Please enter password for secp256k1 keystore: ")?);
     }

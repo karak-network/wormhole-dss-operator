@@ -6,6 +6,7 @@ use libp2p::{
 };
 use tokio::sync::{mpsc, oneshot};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn p2p_init<M, F, Fut>(
     topic: &str,
     listen_addr: Multiaddr,
